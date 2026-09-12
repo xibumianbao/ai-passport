@@ -5,6 +5,7 @@
 #include <string.h>
 LV_FONT_DECLARE(font_muyu_22);
 static lv_obj_t *s_app, *s_battery, *s_status, *s_footer, *s_count, *s_detail;
+static lv_obj_t *s_merit, *s_device_title;
 static lv_obj_t *s_wood, *s_drawer, *s_title, *s_rows[6], *s_labels[6], *s_note;
 static bool s_menu;
 static lv_obj_t *box(lv_obj_t *parent, int x, int y, int w, int h, uint32_t color, int radius)
@@ -36,7 +37,12 @@ void pp_ui_create(void)
     lv_obj_set_style_text_align(s_battery, LV_TEXT_ALIGN_RIGHT, 0);
     box(screen, 0, 29, 240, 1, 0x151515, 0);
     s_status = text(screen, 12, 41, 216, &lv_font_montserrat_14, 0x555555);
-    s_count = text(screen, 16, 76, 208, &font_muyu_22, 0x151515);
+    s_merit = text(screen, 16, 76, 52, &font_muyu_22, 0x151515);
+    lv_label_set_text(s_merit, "功德");
+    s_count = text(screen, 70, 77, 154, &lv_font_montserrat_20, 0x151515);
+    lv_obj_set_style_text_align(s_count, LV_TEXT_ALIGN_RIGHT, 0);
+    s_device_title = text(screen, 16, 76, 208, &lv_font_montserrat_20, 0x151515);
+    lv_label_set_text(s_device_title, "DEVICE STATUS");
     s_wood = box(screen, 47, 142, 146, 77, 0xc58c50, 36);
     lv_obj_set_style_border_width(s_wood, 3, 0);
     lv_obj_set_style_border_color(s_wood, lv_color_hex(0x4b3527), 0);
@@ -64,17 +70,20 @@ void pp_ui_render(const pp_view_t *v, bool strike)
     else lv_label_set_text_fmt(s_battery, "%d%%", v->battery);
     lv_label_set_text(s_status, v->status);
     if (v->muyu) {
+        lv_obj_remove_flag(s_merit, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(s_count, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_device_title, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(s_wood, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text_fmt(s_count, "功德  %" PRIu32, v->count);
-        lv_obj_set_style_text_font(s_count, &font_muyu_22, 0);
+        lv_label_set_text_fmt(s_count, "%" PRIu32, v->count);
         if (!v->menu) {
             lv_obj_set_y(s_detail, 238);
             lv_label_set_text(s_detail, v->audio_ok ? "Tap a key to knock.\nCount resets on reboot." : "Audio unavailable.\nCounter still works.");
         }
     } else {
+        lv_obj_add_flag(s_merit, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_count, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(s_device_title, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_wood, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(s_count, "DEVICE STATUS");
-        lv_obj_set_style_text_font(s_count, &lv_font_montserrat_20, 0);
         lv_obj_set_y(s_detail, 117);
         lv_label_set_text(s_detail, v->detail);
     }

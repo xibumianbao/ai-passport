@@ -56,6 +56,7 @@ int main(void)
     tick(1000); lv_mem_monitor(&after);
     assert(after.free_size + 256 >= before.free_size);
     v.menu=false; v.muyu=true; v.count=UINT32_MAX; v.audio_ok=false; v.battery=-1;
+    strcpy(v.app,"Muyu"); strcpy(v.status,"Wi-Fi OFF | BLE OFF");
     pp_ui_render(&v,false); tick(200); snapshot("passport-error.rgb");
     printf("Passport UI: PASS (5000 transitions; 32 KiB pool; free %zu -> %zu bytes)\n", (size_t)before.free_size,(size_t)after.free_size);
     return 0;
