@@ -209,11 +209,18 @@ static void build_view(pp_view_t *v, const pp_radio_state_t *radio, int battery)
         strcpy(v->title, "SYSTEM"); strcpy(v->rows[0], s_runtime.active < 0 ? "No active app" : "Resume app");
         strcpy(v->rows[1], "Applications"); strcpy(v->rows[2], "Settings"); strcpy(v->rows[3], "About");
         strcpy(v->detail, "One device. Your apps."); break;
-    case APPS:
+    case APPS: {
         strcpy(v->title, "APPLICATIONS");
-        for (size_t i = 0; i < s_runtime.count; ++i)
-            snprintf(v->rows[i], sizeof(v->rows[i]), "%s%s", s_runtime.active == (int)i ? "* " : "", s_runtime.apps[i].name);
-        strcpy(v->detail, "Choose an app.\nLast app opens on boot."); break;
+        int first = s_selection >= 6 ? s_selection - 5 : 0;
+        int available = (int)s_runtime.count - first;
+        v->row_count = available > 6 ? 6 : available; v->selected = s_selection - first;
+        for (int i = 0; i < v->row_count; ++i) {
+            int index = first+i;
+            snprintf(v->rows[i], sizeof(v->rows[i]), "%s%s", s_runtime.active == index ? "* " : "", s_runtime.apps[index].name);
+        }
+        if (v->row_count <= 4) strcpy(v->detail, "Choose an app.\nLast app opens on boot.");
+        break;
+    }
     case SETTINGS: {
         strcpy(v->title, "SETTINGS"); const char *labels[] = {"Wi-Fi", "Bluetooth LE", "Sound", "Display", "Screen timeout", "Diagnostics"};
         for (int i=0; i<6; ++i) strcpy(v->rows[i], labels[i]);

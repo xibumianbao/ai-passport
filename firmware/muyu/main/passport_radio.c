@@ -141,7 +141,10 @@ static esp_err_t portal_post(httpd_req_t *req)
     if (!valid) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Use a 1-32 byte name and empty or 8-63 byte password");
     bool queued = xQueueSend(s_queue, &message, 0) == pdTRUE;
     memset(&message, 0, sizeof(message));
-    if (!queued) return httpd_resp_send_err(req, HTTPD_503_SERVICE_UNAVAILABLE, "Busy; try again");
+    if (!queued) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_sendstr(req, "Busy; try again");
+    }
     httpd_resp_set_hdr(req, "Cache-Control", "no-store");
     return httpd_resp_sendstr(req, "Connection requested. Check Passport for Wi-Fi status. The setup network closes after 5 minutes or when you choose Stop setup.");
 }
