@@ -4,11 +4,15 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from verify_firmware import parse_partition_table, Partition
 
 folder = Path(sys.argv[1] if len(sys.argv) > 1 else 'build').resolve()
 image = folder / 'FoloToy-AI-Passport-full.bin'
 data = image.read_bytes()
 assert 0x10000 < len(data) <= 0x310000, 'Merged image must end before persistent settings and protected cardid'
+partitions, md5_ok = parse_partition_table(data[0x8000:0x8C00])
+assert md5_ok
+assert Partition(1, 2, 0x310000, 0x6000, 'settings') in partitions
 config = (folder / 'sdkconfig').read_text(encoding='utf-8')
 assert 'CONFIG_IDF_TARGET="esp32c3"' in config
 assert 'CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y' in config

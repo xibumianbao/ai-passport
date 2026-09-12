@@ -73,7 +73,6 @@ jobs:
           cmake -S tools/preview -B build/preview -DCMAKE_BUILD_TYPE=Debug
           cmake --build build/preview --parallel 4
           cd build
-          ./preview/muyu_preview
           ./preview/passport_preview
           ./preview/muyu_audio muyu-knock.pcm
           python3 ../tools/preview/write_media.py

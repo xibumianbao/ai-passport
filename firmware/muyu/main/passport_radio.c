@@ -6,6 +6,7 @@
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
+#include "esp_wifi_default.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -43,7 +44,7 @@ static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *da
     }
     if (base == WIFI_EVENT && id == WIFI_EVENT_SCAN_DONE) atomic_store(&s_scan_done, true);
 }
-static esp_err_t initialize_wifi(void)
+static esp_err_t initialize_wifi_once(void)
 {
     if (s_initialized) return ESP_OK;
     esp_err_t e = esp_netif_init(); if (e != ESP_OK) return e;
@@ -59,6 +60,14 @@ static esp_err_t initialize_wifi(void)
     if (e == ESP_OK) s_initialized = true;
     return e;
 }
+static esp_err_t initialize_wifi(void)
+{
+    /* A partially initialized driver/netif must not be created again on retry. */
+    static bool attempted;
+    static esp_err_t result = ESP_FAIL;
+    if (!attempted) { attempted = true; result = initialize_wifi_once(); }
+    return result;
+}
 static esp_err_t start_wifi(void)
 {
     esp_err_t e = initialize_wifi(); if (e != ESP_OK) return e;
@@ -72,6 +81,9 @@ static esp_err_t connect_saved(void)
     if (!s_enabled) return ESP_OK;
     esp_err_t e = start_wifi(); if (e != ESP_OK) return e;
     if (!s_ssid[0]) { s_state.wifi = PP_WIFI_EMPTY; return ESP_OK; }
+    wifi_ap_record_t current_ap;
+    if (!atomic_load(&s_connected) && esp_wifi_sta_get_ap_info(&current_ap) == ESP_OK)
+        esp_wifi_disconnect(); /* Also recover a stuck/lost DHCP lease. */
     wifi_config_t cfg = {0};
     memcpy(cfg.sta.ssid, s_ssid, strlen(s_ssid));
     memcpy(cfg.sta.password, s_password, strlen(s_password));
@@ -195,7 +207,10 @@ static void radio_worker(void *arg)
         if (xQueueReceive(s_queue, &m, pdMS_TO_TICKS(100)) == pdTRUE) {
             esp_err_t e = ESP_OK;
             switch (m.command) {
-            case PP_RADIO_WIFI_ON: s_enabled = true; s_retries = 0; e = connect_saved(); break;
+            case PP_RADIO_WIFI_ON:
+                s_enabled = true; s_retries = 0;
+                if (!s_started) atomic_store(&s_connected, false);
+                e = connect_saved(); break;
             case PP_RADIO_WIFI_OFF:
                 s_enabled = false; stop_portal();
                 if (s_started) { esp_wifi_scan_stop(); esp_wifi_clear_ap_list(); esp_wifi_stop(); }
