@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: muyu-${{ github.ref }}
+  group: muyu-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Repository, firmware-layout and host logic checks
         working-directory: firmware/muyu
         run: ./tools/validate.sh --static
@@ -33,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Build and verify with ESP-IDF 5.5.3
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
         with:
@@ -40,6 +44,8 @@ jobs:
           target: esp32c3
           path: firmware/muyu
           command: idf.py --version && ./tools/validate.sh --firmware
+      - name: Return generated files to the runner user
+        run: sudo chown -R "$(id -u):$(id -g)" firmware/muyu/build
       - name: Confirm pinned components
         run: |
           git diff --exit-code -- firmware/muyu/dependencies.lock

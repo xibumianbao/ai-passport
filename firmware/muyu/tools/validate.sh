@@ -65,6 +65,7 @@ run_firmware_checks() (
                     bootloader/bootloader.bin partition_table/partition-table.bin; do
         install -m 0644 "${validation_build_dir}/${relative}" "${repo_root}/build/${relative}"
     done
+    python3 tools/verify_muyu.py "${repo_root}/build"
     echo "Firmware build: PASS"
 )
 
