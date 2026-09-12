@@ -34,7 +34,10 @@ CONFIG_FREERTOS_HZ=1000
 CONFIG_BT_ENABLED=y
 CONFIG_BT_NIMBLE_ENABLED=y
 CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
-CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=n
+# Keep the upstream minimal peripheral host configuration: IDF 5.5.3 NimBLE
+# teardown and GAP/GATT services require its linked symbols. Runtime advertising
+# remains BLE_GAP_CONN_MODE_NON, so this product does not accept connections.
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
 CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
 CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
 CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
