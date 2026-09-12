@@ -4,7 +4,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-static uint16_t draw_buffer[240*20], pixels[240*320];
+/* Host framebuffer is outside the 32 KiB widget heap. A full frame avoids
+ * coupling screenshots to the board transport's partial-buffer handling. */
+static uint16_t draw_buffer[240*320], pixels[240*320];
 static void flush(lv_display_t *display, const lv_area_t *area, uint8_t *data)
 {
     size_t width = (size_t)lv_area_get_width(area);
@@ -29,7 +31,7 @@ int main(void)
 {
     lv_init(); lv_display_t *d=lv_display_create(240,320);
     lv_display_set_color_format(d, LV_COLOR_FORMAT_RGB565);
-    lv_display_set_buffers(d, draw_buffer, NULL, sizeof(draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_buffers(d, draw_buffer, NULL, sizeof(draw_buffer), LV_DISPLAY_RENDER_MODE_FULL);
     lv_display_set_flush_cb(d, flush); pp_ui_create();
     pp_view_t v={.muyu=true,.audio_ok=true,.buttons_ok=true,.battery=99,.count=12};
     strcpy(v.app,"Muyu"); strcpy(v.status,"Wi-Fi ONLINE | BLE OFF");
