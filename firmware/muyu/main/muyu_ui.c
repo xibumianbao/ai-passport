@@ -52,7 +52,7 @@ static void mallet_y(void *obj, int32_t y)
 {
     lv_obj_set_pos(obj, 155, y);
     s_handle_points[0] = (lv_point_precise_t){169, y + 13};
-    s_handle_points[1] = (lv_point_precise_t){204, y - 14};
+    s_handle_points[1] = (lv_point_precise_t){204, y + 5};
     lv_line_set_points_mutable(s_handle, s_handle_points, 2);
 }
 
