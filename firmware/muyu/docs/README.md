@@ -1,6 +1,6 @@
 # FoloToy AI Passport
 
-This derivative builds the [Muyu MVP](../README.md); use that application guide
+This derivative builds the [Passport platform](../README.md); use that application guide
 for controls, sources, build artifacts and device acceptance.
 
 English | [简体中文](README.zh_CN.md)

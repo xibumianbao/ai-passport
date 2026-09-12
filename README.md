@@ -6,16 +6,9 @@
 
 ## 当前状态
 
-首个设备开发场景是[木鱼应用](firmware/muyu/README.zh_CN.md)：任意按键敲击、合成音效、木槌动画、功德计数和电量显示。基于官方 ESP-IDF 5.5.3 工程，源码位于 `firmware/muyu`，由 GitHub Actions 执行检查和固件构建。该场景用于验证按键、屏幕与声音交互，后续继续推进独立联网远程语音 Agent。
+当前优先建设 [Passport 多应用底座 0.2.0](firmware/muyu/README.zh_CN.md)：常驻菜单、木鱼/设备状态切换、恢复上次应用、共享 Wi-Fi 配网、BLE 广播、音量、亮度与息屏设置。未来独立联网语音 Agent 将作为一个应用接入。
 
-操作说明、构建方式和实机验收清单见[木鱼应用说明](firmware/muyu/README.zh_CN.md)。构建通过与设备测试分别记录；当前应用没有 Voice Gateway，也不需要联网。
-
-开发计划：
-
-1. 核对设备、身份数据保护和恢复方式，建立可构建的固件基线。
-2. 验证本机录放音、手机配网与 WSS 连接。
-3. 跑通单 Agent 对话、回复播放和取消操作。
-4. 增加多 Agent 路由并进行稳定性、续航和恢复验收。
+源码位于 `firmware/muyu`，使用 ESP-IDF 5.5.3 与 GitHub Actions 构建。构建、主机测试与实机验收分别记录，首次硬件验收见[测试清单](firmware/muyu/docs/platform-acceptance.zh_CN.md)。当前没有 Voice Gateway 或动态应用安装。
 
 ## 开发方式
 

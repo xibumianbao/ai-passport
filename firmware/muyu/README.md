@@ -1,86 +1,44 @@
-[简体中文](README.zh_CN.md) | English
+<p align="right"><a href="README.zh_CN.md">简体中文</a> · <strong>English</strong></p>
 
-# Muyu: wooden-fish MVP
+# Passport platform 0.2.0
 
-An offline wooden-fish app for FoloToy AI Passport. It boots directly into the
-app: press **UP, DOWN or OK** to strike, hear a short wooden percussion tone,
-animate the mallet and increase the on-screen merit counter by one.
+A persistent system shell for the FoloToy AI Passport. It contains two registered apps: Muyu and Device status. Normal boot restores the last successfully started app; a first boot, removed app, or repeated failed startup opens the application menu. The historical source directory `firmware/muyu` is retained for build compatibility.
 
-Only the initial button-down event counts. Holding a key does not auto-repeat,
-and click/double-click/long-press notifications do not add duplicate counts.
-The counter belongs to the current boot session and resets on reboot. There is
-no provisioning, network dependency, account, background recording or saved count.
+## Controls
 
-## Build and inspect
+- Hold OK for 800 ms: system menu. Inside a menu: back one level.
+- UP / DOWN: select. Short OK: confirm on release; a long press never also confirms or strikes.
+- Muyu: UP / DOWN strike immediately; short OK strikes on release. Count survives app switching, resets on reboot.
+- Settings: Wi-Fi, BLE beacon, volume (0-100), brightness (10-100), screen timeout (off/60/120/300 seconds), diagnostics.
+- A sleeping screen consumes the first button gesture to wake. Screen timeout turns off the backlight and pauses the app; this is not deep sleep. Wi-Fi stays managed by the system.
+- App identity is saved after 10 seconds of stable operation. Settings save one second after the last adjustment, or when confirmed. Two interrupted startup windows fall back to the menu.
 
-The target is ESP32-C3 with 8 MB Flash and ESP-IDF **5.5.3**. The project retains
-the upstream BSP, pins and protected partition layout. See
-[environment setup](docs/development/engineering/environment-setup.md) for a
-local toolchain, then run from this directory:
+## Shared networking
 
-```sh
-./tools/validate.sh --static
-./tools/validate.sh --firmware
-```
+Wi-Fi is owned by one system worker. Switching apps preserves the connection and saved configuration. Application sessions have generation tokens and cancellation registrations: opening the menu or switching invalidates old tokens and cancels owned resources. Future HTTP/recording adapters must register cancellation and validate tokens on the control task. Shared transport never grants another app the previous app's cloud identity.
 
-The project workflow in the outer repository runs both gates, renders the same
-LVGL UI on the host, exercises 1,000 rapid UI updates and uploads the checked
-firmware, Flash segments, PNG previews and generated WAV. Host rendering is not
-device validation. The artifact name includes the source commit.
+In Settings > Wi-Fi > Set up with phone, join the `Passport-…` access point using the random password shown on the device, then open `http://192.168.4.1`. Enter a 2.4 GHz Wi-Fi name and password. The setup AP closes after five minutes or Stop setup; returning to the app preserves setup until then. The form uses a password-protected local AP, limits input length, rejects malformed/duplicate fields and cross-origin requests, and does not echo credentials. This does not provide TLS or encrypted Flash storage. ONLINE means an IP address was acquired, not a verified Internet connection.
 
-## Flash and test
+A manual scan lists up to four nearby networks; joining uses phone setup. BLE is a non-connectable `Passport` beacon only: no pairing, Bluetooth audio, GATT data service, or BLE provisioning is claimed. The BLE host is initialized on demand and stopped when disabled. Wi-Fi/BLE coexistence and memory remain board acceptance items.
 
-Before flashing, confirm the factory recovery entry for your own device.
-Keep the device identity and its recovery parameters private. Use a data-capable
-USB-C cable and the device's USB Serial/JTAG connection.
+## Architecture and extension
 
-The checked artifact is `FoloToy-AI-Passport-full.bin`. This application adds no
-resource partition after `cardid`; the verification gate requires the merged
-file to end before `0x356000` for this MVP. With that verified file, the
-[official browser flasher](https://ai-passport.folotoy.cn/tools/web-flasher/)
-can write at **0x0** without erasing the entire chip. Never select erase-all.
-For a configured ESP-IDF checkout, prefer segmented `idf.py -p PORT flash`.
-Do not confuse the app-only `FoloToy-AI-Passport.bin` with the merged image.
+`passport_core` is a host-testable lifecycle, input and cancellation module. `passport_app` owns the app registry and control loop, navigation, persistence and view state. `passport_ui` reuses a single LVGL object tree. `passport_audio` owns codec writes and drains buffered audio before acknowledging cancellation. `passport_radio` owns Wi-Fi, provisioning and reconnect; `passport_ble` owns the NimBLE lifecycle. Radio/audio callbacks never access UI. The control task owns runtime/session access, including resource acquisition/release and callback validation; workers send bounded results back rather than racing that state.
 
-Acceptance on the actual board:
+Add an app descriptor to `APPS_LIST`: stable ID, display name, version, author, start/stop/focus/key handlers. Start prepares lightweight state; acquire session resources in focus(true), after activation. Stop must finish application-owned work. Cancellation is idempotent, bounded and must join/acknowledge any asynchronous producer before deleting application state. There is one foreground app and eight bounded cancellation slots. This is cooperative lifecycle management, not process isolation. Dynamic installation, OTA, a voice gateway, microphone sessions, and general network request adapters are future work.
 
-1. Boot shows the wooden fish, zero count and battery level (or `--%`).
-2. Press each key ten times: exactly thirty counts and immediate visible feedback.
-3. Hold one key: exactly one count until release; double-tap: two counts.
-4. Repeatedly press for one minute: no crash, stuck animation or growing sound queue.
-5. The speaker emits a short wood-like tone; listen for distortion and latency.
-6. Restart: the count returns to zero. Check recovery access after the test.
+## Persistence and Flash
 
-Build results cannot establish these physical checks. A codec or audio-worker
-failure shows `SOUND UNAVAILABLE` while counting remains usable. A button-init
-failure shows `BUTTON ERROR`.
+ESP32-C3, 8 MB, ESP-IDF 5.5.3; the 3 MiB app ceiling and `cardid@0x356000` are unchanged. New `settings` NVS is at `0x310000`, size `0x6000`. The verified merged file must end at or before `0x310000`, preserving both settings and identity on subsequent raw writes. No settings/identity payload is included. Platform keys use namespace `passport`, Wi-Fi uses `pp_wifi`; future app data must use separate namespaces. Wi-Fi credentials are saved as a single bounded blob. Storage initialization never auto-erases partitions on an error.
 
-## Implementation and resources
+Use only the checked **FoloToy-AI-Passport-full.bin**, offset **0x0**, with the [official web flasher](https://ai-passport.folotoy.cn/tools/web-flasher/). Never erase the entire chip. The merged image may replace the default `nvs` driver cache below the app; platform settings live outside that range. Do not flash the app-only image at 0x0. This version changes the partition table by adding settings in the previously unused gap; it does not move existing partitions. Board tests are required before merge.
 
-- `main/muyu_app.c`: BSP initialization and notification-driven workers. The
-  button callback never blocks on rendering, I2C, storage or sound.
-- `main/muyu_ui.c`: fixed LVGL objects and reusable absolute-position animations.
-- `main/muyu_logic.c`: saturating 32-bit counter and bounded four-voice mixer.
-- The synthesized tone is 192 ms, 16 kHz, signed 16-bit mono: 6,144 static bytes.
-  Output chunks are 320 bytes. Excess simultaneous hits replace old tails; all
-  accepted presses still count. Default speaker volume is 65 percent.
-- Firmware LVGL pool: 32 KiB; upstream 20-row display buffer is unchanged.
-  The host preview uses a larger pool for 64-bit pointers and full-frame output;
-  it does not measure device RAM, latency, battery life or acoustic quality.
-- Wi-Fi is not initialized and Bluetooth is disabled. The counter never writes
-  NVS on a strike. Battery access uses the unchanged upstream CW2017 driver.
+## Validation
 
-## Source and licenses
+Run `./tools/validate.sh --static` and `./tools/validate.sh --firmware`. GitHub Actions uses the pinned IDF container, builds from a clean configuration, checks the dependency lock, validates partitions and hashes, then renders the actual LVGL sources. Core tests include 10,000 clicks, 10,000 lifecycle switches, cancellation capacity, stale tokens, failure recovery, settings validation and 20,000 malformed form inputs with ASan/UBSan. The platform UI runs 5,000 transitions in a 32 KiB LVGL pool. Host heap and simulated network labels are not board RAM or connectivity measurements.
 
-The complete upstream baseline was imported from
-[`FoloToy/ai-passport@f75873f1`](https://github.com/FoloToy/ai-passport/tree/f75873f1aab24ac4c0ba9394c131669f66cce650).
-It remains under the included [MIT license](LICENSE). The original demo sources
-remain available for reference; this application's CMake target builds the Muyu
-entry point instead of the demo menu.
+Build and host results belong to the exact CI/source SHA. `build-info.json` records identity, target, version, hash, length and device tests NOT RUN. See [board acceptance](docs/platform-acceptance.md) for the remaining tests. This package is for the first on-device validation, not a claim of hardware acceptance.
 
-The modal synthesis idea and `font_muyu_22.c` come from the
-[`demo/coloros-muyu` example at 16df9944](https://github.com/FoloToy/ai-passport/tree/16df9944d0f6a83b475e05acabbea73c8b49c3e1).
-The Source Han Sans SC subset retains its
-[SIL Open Font License](assets/fonts/SourceHanSans-OFL.txt).
-The wooden-fish graphic is drawn with LVGL primitives; no background image from
-that example is used. Dependency versions remain pinned in `dependencies.lock`.
+## Provenance
+
+Based on FoloToy/ai-passport `f75873f1aab24ac4c0ba9394c131669f66cce650`, the Muyu example `16df9944d0f6a83b475e05acabbea73c8b49c3e1`, and our verified Muyu baseline `16f9a7de434e6918e1a98caeecff28b171bcfea3`. Upstream [MIT license](LICENSE), BSP, engineering references, Muyu logic and font are retained. The system menu follows the requested monochrome list/drawer direction; it uses actual vector widgets, not screenshot assets.

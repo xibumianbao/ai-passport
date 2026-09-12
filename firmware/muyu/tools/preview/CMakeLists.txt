@@ -19,3 +19,8 @@ add_executable(muyu_audio "${FIRMWARE_ROOT}/tests/test_muyu_logic.c"
     "${FIRMWARE_ROOT}/main/muyu_logic.c")
 target_include_directories(muyu_audio PRIVATE "${FIRMWARE_ROOT}/main")
 target_link_libraries(muyu_audio PRIVATE m)
+add_executable(passport_preview passport_preview.c
+    "${FIRMWARE_ROOT}/main/passport_ui.c" "${FIRMWARE_ROOT}/main/font_muyu_22.c")
+target_include_directories(passport_preview PRIVATE "${FIRMWARE_ROOT}/main")
+target_compile_options(passport_preview PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(passport_preview PRIVATE lvgl::lvgl m)

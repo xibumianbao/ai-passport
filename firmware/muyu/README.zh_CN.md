@@ -1,50 +1,44 @@
-简体中文 | [English](README.md)
+<p align="right"><strong>简体中文</strong> · <a href="README.md">English</a></p>
 
-# 木鱼：最小可用应用
+# Passport 多应用底座 0.2.0
 
-运行在 FoloToy AI Passport 上的离线木鱼应用。开机直接进入木鱼界面：按 **上、下或 OK** 任意一个键，播放短促木鱼声、展示木槌敲击动画，并让屏幕上的功德计数加一。
+面向 FoloToy AI Passport 的常驻系统底座，内置木鱼和设备状态两个注册应用。正常开机恢复上次成功启动的应用；首次启动、应用缺失或连续启动失败时进入应用菜单。保留历史目录 `firmware/muyu` 以兼容构建入口。
 
-只统计按下瞬间。按住不连续累加，单击、双击、长按识别事件不会重复计数。计数属于本次开机会话，重启清零；无需配网、网络、账号，不后台录音，也不保存计数。
+## 操作
 
-## 构建与检查
+- 长按 OK 800 毫秒进入系统菜单；菜单中长按返回上一级。
+- 上/下选择，短按 OK 松手确认。长按不会额外触发确认或敲击。
+- 木鱼：上/下按下立即敲击，OK 松手敲击；切换应用保留计数，重启清零。
+- 设置：Wi-Fi、BLE 广播、音量 0–100、亮度 10–100、息屏时间（关闭/60/120/300 秒）、诊断。
+- 息屏后第一次完整按键操作只唤醒。息屏关闭背光并暂停应用，尚非深度休眠；网络仍由系统管理。
+- 应用稳定运行 10 秒后记住其身份。设置调整停止 1 秒或确认后保存；连续两次启动观察窗口被中断则回到菜单。
 
-目标为 ESP32-C3、8 MB Flash、ESP-IDF **5.5.3**。保留官方 BSP、引脚和身份区分区布局。本地环境参考[环境安装说明](docs/development/engineering/environment-setup.zh_CN.md)，激活后在本目录运行：
+## 共享联网
 
-```sh
-./tools/validate.sh --static
-./tools/validate.sh --firmware
-```
+一个系统任务统一管理 Wi-Fi，切换应用保留连接与配置。应用会话带代次令牌并登记取消回调；进入菜单或切换会使旧令牌失效并回收资源。未来的 HTTP/录音适配器必须登记取消动作，在控制任务中校验令牌。共享连接不继承旧应用云端身份。
 
-外层项目的 GitHub Actions 会运行两类检查、用实际 LVGL 界面代码渲染预览、验证 1,000 次快速更新，并上传核验后的固件、分段镜像、PNG 预览和合成 WAV。主机渲染不等于实机验证，产物名包含源码提交号。
+进入 Settings > Wi-Fi > Set up with phone，手机连接设备屏幕显示的 `Passport-…` 热点并输入随机密码，打开 `http://192.168.4.1`，填写 2.4 GHz Wi-Fi 名称和密码。热点五分钟后或选择 Stop setup 关闭；返回应用可继续保持配网窗口。配网使用带密码的本地热点，限制输入长度、拒绝非法/重复字段及跨来源请求，不回显凭据。本版不提供 TLS 或 Flash 加密。ONLINE 只表示已获取 IP，不代表已经验证互联网可达。
 
-## 刷写与验收
+Scan nearby 最多显示四个附近网络，加入网络仍走手机配网。蓝牙本版为名为 `Passport` 的不可连接广播；不含配对、蓝牙音频、GATT 数据服务或蓝牙配网。按需初始化 NimBLE，关闭时停止协议栈。Wi-Fi/BLE 共存与内存仍需实机验收。
 
-刷写前确认自己设备的出厂恢复入口。设备身份和专属恢复参数需保密。使用支持数据传输的 USB-C 线，连接 USB Serial/JTAG 端口。
+## 架构和新增应用
 
-合并固件为 `FoloToy-AI-Passport-full.bin`。本应用没有增加身份区之后的资源分区，检查脚本要求该 MVP 的合并文件必须在 `0x356000` 之前结束。对于已通过该检查的文件，可使用[官方网页刷写工具](https://ai-passport.folotoy.cn/tools/web-flasher/)，从 **0x0** 写入，不做全片擦除。不要选择 erase-all。在已配置 ESP-IDF 的工程中优先使用分段命令 `idf.py -p PORT flash`。不要把仅含应用的 `FoloToy-AI-Passport.bin` 当成合并固件。
+`passport_core` 是可主机测试的生命周期、输入及取消模块；`passport_app` 管理应用注册表、控制循环、导航、持久化和界面状态；`passport_ui` 复用固定 LVGL 对象树；`passport_audio` 独占 codec 写入并在确认取消前排空缓冲音频；`passport_radio` 管理 Wi-Fi、配网与重连，`passport_ble` 管理 NimBLE 生命周期。网络/音频回调不访问 UI。应用生命周期、资源登记释放和令牌校验均在控制任务执行，工作任务通过有界结果消息回传，不能并发读写生命周期状态。
 
-实际设备验收：
+在 `APPS_LIST` 注册稳定 ID、名称、版本、作者及 start/stop/focus/key。start 只准备轻量状态，在激活后的 focus(true) 中申请会话资源；stop 必须结束自身工作。取消动作应幂等、有时间上限，并在删除应用状态前确认异步生产者退出。当前单前台、最多八个取消资源槽，这是协作式生命周期管理，尚无独立进程隔离。动态安装、OTA、Voice Gateway、麦克风会话和通用网络请求适配器留待后续。
 
-1. 开机出现木鱼、零计数和电量，电量不可读时为 `--%`。
-2. 三个键分别敲十次，合计准确增加三十次并立即有视觉反馈。
-3. 按住一次只加一；快速双击加二。
-4. 连续敲一分钟，无崩溃、动画卡住或越来越长的音效积压。
-5. 扬声器播放短促木鱼声，检查失真与时延。
-6. 重启后计数清零，测试后核对恢复入口可用。
+## 持久化与烧录
 
-构建通过不能代替上述物理检查。音频初始化或播放失败时显示 `SOUND UNAVAILABLE`，仍可计数；按键初始化失败显示 `BUTTON ERROR`。
+目标 ESP32-C3、8 MB Flash、ESP-IDF 5.5.3；3 MiB 应用上限与 `cardid@0x356000` 保持不变。新增 `settings` NVS 位于 `0x310000`、大小 `0x6000`。校验要求合并镜像结束位置不超过 `0x310000`，因此后续连续写入保留设置和设备身份，交付不含这些分区的内容。平台使用 `passport` 命名空间，Wi-Fi 使用 `pp_wifi`；未来每个应用使用独立命名空间。联网凭据以一个有界 blob 保存。存储初始化错误不会自动擦除分区。
 
-## 实现与资源
+只使用校验通过的 **FoloToy-AI-Passport-full.bin**，在[官方网页烧录器](https://ai-passport.folotoy.cn/tools/web-flasher/)选择偏移 **0x0**，不要全片擦除。合并镜像可能覆盖应用之前的默认 `nvs` 驱动缓存；平台设置在这个范围之外。不要把 app-only 镜像按 0x0 烧入。本版在原有空隙新增设置分区，原分区不移动；合并前需完成实机验收。
 
-- `main/muyu_app.c`：BSP 初始化、任务通知与工作任务。按键回调不会等待绘图、I2C、存储或声音播放。
-- `main/muyu_ui.c`：固定 LVGL 对象和可重用的绝对位置动画。
-- `main/muyu_logic.c`：达到上限后保持不回绕的 32 位计数器，以及最多四路的混音器。
-- 合成木鱼声为 192 毫秒、16 kHz、16 位单声道，静态音色数组占 6,144 字节，每个输出块 320 字节。瞬时过多的敲击会替换旧声音尾部，计数仍覆盖收到的全部按下事件。默认音量 65%。
-- 固件 LVGL 内存池为 32 KiB，沿用官方 20 行绘制缓冲。主机预览因 64 位指针和整屏输出使用较大内存池，不用于测量设备内存、时延、续航或真实声音。
-- 不初始化 Wi-Fi，关闭蓝牙；每次敲击不写 NVS。电量读取沿用官方 CW2017 驱动。
+## 测试
 
-## 来源与许可
+执行 `./tools/validate.sh --static` 和 `./tools/validate.sh --firmware`。GitHub Actions 使用固定 IDF 容器与干净配置，检查依赖锁、分区、镜像哈希，再渲染真实 LVGL 源码。核心测试覆盖 10,000 次短按、10,000 次生命周期切换、资源上限、旧令牌、失败恢复、设置校验以及 ASan/UBSan 下 20,000 组异常表单输入；平台 UI 在 32 KiB LVGL 池运行 5,000 次切换。主机内存及模拟网络文案不等于设备内存与实测联网。
 
-完整官方基线来自 [`FoloToy/ai-passport@f75873f1`](https://github.com/FoloToy/ai-passport/tree/f75873f1aab24ac4c0ba9394c131669f66cce650)，保留 [MIT 许可](LICENSE)。原始演示源码仍可参考，本应用通过 CMake 编译木鱼入口，不编译演示菜单。
+构建和主机结论绑定具体 CI/源码 SHA，`build-info.json` 记录版本、目标、长度、哈希及 Device tests NOT RUN。待实测步骤见[实机验收清单](docs/platform-acceptance.zh_CN.md)。本包供首次设备验收使用，不表示已经完成硬件验收。
 
-共振衰减音色思路和 `font_muyu_22.c` 来自 [`demo/coloros-muyu@16df9944`](https://github.com/FoloToy/ai-passport/tree/16df9944d0f6a83b475e05acabbea73c8b49c3e1)。思源黑体 SC 字形子集附有 [SIL Open Font License](assets/fonts/SourceHanSans-OFL.txt)。木鱼图形用 LVGL 基本图形绘制，没有使用示例的背景图片。组件版本继续由 `dependencies.lock` 锁定。
+## 来源
+
+基于 FoloToy/ai-passport `f75873f1aab24ac4c0ba9394c131669f66cce650`、木鱼示例 `16df9944d0f6a83b475e05acabbea73c8b49c3e1` 和本项目已验证木鱼基线 `16f9a7de434e6918e1a98caeecff28b171bcfea3`。保留上游 [MIT 许可证](LICENSE)、BSP、工程资料、木鱼逻辑和字库。系统菜单按用户要求采用黑白列表与抽屉方向，由真实矢量控件绘制，不嵌入截图。

@@ -4,6 +4,13 @@
 
 # Changelog
 
+## 2026-09-13 - Passport platform 0.2.0
+
+- Add the persistent app shell, last-app recovery, shared Wi-Fi provisioning, BLE beacon control, shared settings and screen timeout.
+- Add generation-scoped cancellation, release-based OK input, and host/UI stress tests.
+- Reserve settings NVS at 0x310000; preserve the existing app limit and card identity.
+- Hardware acceptance is pending; see [the checklist](platform-acceptance.md).
+
 ## Unreleased
 
 - Added the standalone offline Muyu MVP: any button strikes once on press,

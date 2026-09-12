@@ -32,6 +32,9 @@ run_static_checks() {
         tests/test_muyu_logic.c main/muyu_logic.c -lm \
         -o "${test_dir}/test_muyu_logic"
     "${test_dir}/test_muyu_logic"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g -Imain \
+        tests/test_passport_core.c main/passport_core.c -o "${test_dir}/test_passport_core"
+    "${test_dir}/test_passport_core"
     python3 tests/test_verify_firmware.py
     rm -rf "${test_dir}"
     echo "Host tests: PASS"
