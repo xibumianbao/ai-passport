@@ -1,0 +1,4 @@
+interface:
+  display_name: "IDA 远程智能体"
+  short_description: "初始化并调用 IDA，支持流式问答、任务恢复、取消操作及最终结果核验"
+  default_prompt: "使用 $ida-agent-client 初始化我的 IDA 连接，并完成一次问答与结果核验。"
