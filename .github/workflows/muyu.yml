@@ -50,20 +50,12 @@ jobs:
         run: |
           git diff --exit-code -- firmware/muyu/dependencies.lock
           python3 firmware/muyu/tools/verify_muyu.py firmware/muyu/build
-      - name: Render the actual LVGL UI and exercise rapid presses
-        working-directory: firmware/muyu
-        run: |
-          cmake -S tools/preview -B build/preview -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build/preview --parallel 4
-          cd build
-          ./preview/muyu_preview
-          ./preview/muyu_audio muyu-knock.pcm
-          python3 ../tools/preview/write_media.py
+          cd firmware/muyu/build
           sha256sum FoloToy-AI-Passport-full.bin FoloToy-AI-Passport.bin > SHA256SUMS
-      - name: Upload checked firmware, segments, previews and tone
+      - name: Upload checked firmware and Flash segments
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: muyu-${{ github.sha }}
+          name: muyu-firmware-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             firmware/muyu/build/FoloToy-AI-Passport-full.bin
             firmware/muyu/build/FoloToy-AI-Passport.bin
@@ -73,6 +65,22 @@ jobs:
             firmware/muyu/build/sdkconfig
             firmware/muyu/build/SHA256SUMS
             firmware/muyu/build/build-info.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Render the actual LVGL UI and exercise rapid presses
+        working-directory: firmware/muyu
+        run: |
+          cmake -S tools/preview -B build/preview -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/preview --parallel 4
+          cd build
+          ./preview/muyu_preview
+          ./preview/muyu_audio muyu-knock.pcm
+          python3 ../tools/preview/write_media.py
+      - name: Upload UI previews and generated tone
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: muyu-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
             firmware/muyu/build/muyu-*.png
             firmware/muyu/build/muyu-knock.wav
           if-no-files-found: error

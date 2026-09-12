@@ -9,6 +9,6 @@
 #define LV_LOG_PRINTF 1
 #define LV_USE_ASSERT_MALLOC 1
 #define LV_USE_ASSERT_NULL 1
-#define LV_ASSERT_HANDLER do { abort(); } while (0)
+#define LV_ASSERT_HANDLER do { abort(); } while (0);
 #define LV_ASSERT_HANDLER_INCLUDE <stdlib.h>
 #endif
