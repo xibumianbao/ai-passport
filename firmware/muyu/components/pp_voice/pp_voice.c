@@ -5,6 +5,7 @@
 #include "pp_voice_wire.h"
 #include "pp_voice_codec.h"
 #include "pp_voice_selftest.h"
+#include "pp_voice_turn.h"
 #include "passport_audio.h"
 #include "passport_radio.h"
 #include "passport_core.h"
@@ -39,6 +40,11 @@
 #define STACK_MARGIN (4*1024)
 #define PCM_BYTES PP_VOICE_PCM_BYTES
 #define IO_TIMEOUT 1000
+/* BSP uses six 240-frame DMA descriptors: 90 ms at 16 kHz. After playback,
+ * wait for one output window, then discard two input windows (180 ms mono).
+ * Fixed chunks reuse pcm; no audio history or extra allocation is retained. */
+#define AUDIO_DMA_WINDOW_MS 90
+#define INPUT_FLUSH_BYTES (16000*2*2*AUDIO_DMA_WINDOW_MS/1000)
 static const char *TAG="pp_voice";
 static portMUX_TYPE snapshot_lock=portMUX_INITIALIZER_UNLOCKED;
 static pp_voice_snapshot_t snapshot;
@@ -51,14 +57,19 @@ typedef struct {
     esp_transport_handle_t ssl, ws;
     pp_voice_assembly_t message;
     pp_voice_codec_t codec;
+    pp_voice_turn_t turn;
     uint8_t tx[PP_VOICE_OPUS_MAX+16], chunk[1024];
     int16_t pcm[1920]; /* max 120 ms output, decoder requests 60 ms */
-    bool audio, hello, listening, response, tts, failed;
+    bool audio, hello, failed;
     bool read_measured, encode_measured, decode_measured, write_measured;
     uint32_t tx_count, rx_count;
-    int64_t last_rx, listen_at, response_at, last_ping;
+    int64_t last_rx, last_ping, fragment_at;
 } voice_t;
 static bool live(const voice_t *v) { return atomic_load(&wanted)==v->ticket; }
+static bool cancel_pending(const voice_t *v)
+{ return pp_voice_turn_active(&v->turn) && atomic_load(&pressed)==v->ticket; }
+static bool permitted(const voice_t *v) { return live(v) && !cancel_pending(v); }
+static bool capturing(const voice_t *v) { return permitted(v) && pp_voice_turn_captures(&v->turn); }
 static int64_t now_ms(void) { return esp_timer_get_time()/1000; }
 static void publish(voice_t *v,pp_voice_state_t state,const char *detail)
 {
@@ -146,7 +157,11 @@ void pp_voice_close(void *unused)
 void pp_voice_press(void)
 {
     pp_voice_snapshot_t state; pp_voice_snapshot(&state);
-    if(state.state==PP_VOICE_ERROR || state.state==PP_VOICE_WIFI) pp_voice_open();
+    if(state.state==PP_VOICE_STOPPED) {
+        /* This explicit press authorizes the new session's first turn. App
+         * entry/retry alone still goes to Ready without recording. */
+        pp_voice_open(); atomic_store(&pressed,atomic_load(&wanted));
+    } else if(state.state==PP_VOICE_ERROR || state.state==PP_VOICE_WIFI) pp_voice_open();
     else if(state.state==PP_VOICE_READY || state.state==PP_VOICE_LISTENING ||
             state.state==PP_VOICE_THINKING || state.state==PP_VOICE_SPEAKING)
         atomic_store(&pressed,atomic_load(&wanted));
@@ -326,7 +341,7 @@ static bool connect_ws(voice_t *v)
 }
 static bool codec_select(voice_t *v,pp_codec_mode_t mode)
 {
-    if(!live(v)) return false;
+    if(!permitted(v)) return false;
     memory_log(mode==PP_CODEC_ENCODE?"before encoder":"before decoder");
     esp_audio_err_t error=pp_voice_codec_select(&v->codec,mode);
     memory_log(mode==PP_CODEC_ENCODE?"after encoder":"after decoder");
@@ -336,7 +351,7 @@ static bool codec_select(voice_t *v,pp_codec_mode_t mode)
             error==ESP_AUDIO_ERR_MEM_LACK?"out of RAM":"init failed",(int)error);
         return fail(v,detail);
     }
-    return live(v);
+    return permitted(v);
 }
 static bool audio_prepare(voice_t *v)
 {
@@ -358,35 +373,72 @@ static bool silence(voice_t *v)
      * sample while idle. This also drains the already submitted final PCM. */
     return bsp_audio_write(v->pcm,3200)==ESP_OK;
 }
-static bool listen_command(voice_t *v,bool start)
+static bool flush_input(voice_t *v)
 {
-    if(start) {
-        if(!codec_select(v,PP_CODEC_ENCODE)) return false;
-    } else {
-        /* No more captured frames after listen-stop. Reclaim the encoder
-         * before network stop/JSON/TTS processing can allocate anything. */
-        v->listening=false;
-        pp_voice_codec_close(&v->codec);
-        memory_log("recording released");
+    size_t discarded=0;
+    while(discarded<INPUT_FLUSH_BYTES && permitted(v)) {
+        esp_err_t error=bsp_audio_read(v->pcm,320);
+        if(error!=ESP_OK) {
+            ESP_LOGW(TAG,"Input flush code=%d bytes=%u phase=%u",(int)error,(unsigned)discarded,(unsigned)v->turn.phase);
+            return fail(v,"Microphone refresh failed");
+        }
+        discarded+=320;
     }
+    memset(v->pcm,0,sizeof(v->pcm));
+    if(!permitted(v)) return false;
+    ESP_LOGI(TAG,"Input refreshed: bytes=%u",(unsigned)discarded);
+    return true;
+}
+static bool start_listening(voice_t *v)
+{
+    if(!permitted(v) || v->turn.phase!=PP_TURN_START_PENDING) return false;
+    if(!flush_input(v) || !codec_select(v,PP_CODEC_ENCODE) || !permitted(v)) return false;
     cJSON *j=cJSON_CreateObject();
-    if(!j) return false;
-    cJSON_AddStringToObject(j,"session_id",v->session);
-    cJSON_AddStringToObject(j,"type","listen");
-    cJSON_AddStringToObject(j,"state",start?"start":"stop");
-    if(start) cJSON_AddStringToObject(j,"mode","manual");
-    char *s=cJSON_PrintUnformatted(j); cJSON_Delete(j);
-    bool ok=s && send_text(v,s); free(s);
-    if(ok) {
-        v->listening=start; v->response=!start; v->tts=false;
-        if(start) v->listen_at=now_ms();
-        else v->response_at=now_ms();
-        publish(v,start?PP_VOICE_LISTENING:PP_VOICE_THINKING,start?"Speak now. OK to send":"Waiting for your answer");
+    if(!j) return fail(v,"Not enough memory for listen command");
+    bool fields=cJSON_AddStringToObject(j,"session_id",v->session) &&
+        cJSON_AddStringToObject(j,"type","listen") && cJSON_AddStringToObject(j,"state","start") &&
+        cJSON_AddStringToObject(j,"mode","auto");
+    char *s=fields?cJSON_PrintUnformatted(j):NULL; cJSON_Delete(j);
+    bool ok=s && permitted(v) && send_text(v,s); free(s);
+    if(!ok) return !permitted(v)?false:fail(v,"Cannot start automatic listening");
+    pp_voice_turn_event(&v->turn,PP_TURN_LISTEN_SENT,(uint64_t)now_ms());
+    ESP_LOGI(TAG,"Auto listen started: turn=%lu",(unsigned long)v->turn.turns);
+    publish(v,PP_VOICE_LISTENING,"Speak, then pause for a reply");
+    return true;
+}
+static bool pending_turn(voice_t *v)
+{
+    /* Called only after receive()/json_message() has deleted its JSON object.
+     * TTS:start revokes capture in the state machine before this release. */
+    if(v->turn.phase==PP_TURN_WAIT_AUDIO && v->codec.mode==PP_CODEC_ENCODE) {
+        pp_voice_codec_close(&v->codec); memory_log("auto capture released");
+        publish(v,PP_VOICE_THINKING,"Waiting for the spoken reply");
     }
-    return ok;
+    if(v->turn.phase==PP_TURN_RESUME_PENDING) {
+        if(!permitted(v)) return false;
+        if(!silence(v)) return fail(v,"Playback drain failed");
+        int64_t until=now_ms()+AUDIO_DMA_WINDOW_MS+10;
+        while(permitted(v) && now_ms()<until) vTaskDelay(pdMS_TO_TICKS(10));
+        if(!permitted(v)) return false;
+        pp_voice_codec_close(&v->codec); memory_log("auto playback drained and released");
+        pp_voice_turn_event(&v->turn,PP_TURN_DRAINED,(uint64_t)now_ms());
+    }
+    if(v->turn.phase==PP_TURN_START_PENDING) return start_listening(v);
+    return true;
+}
+static bool key_requested(voice_t *v)
+{
+    if(!v->hello) return false;
+    unsigned expected=v->ticket;
+    if(!atomic_compare_exchange_strong(&pressed,&expected,0)) return false;
+    pp_voice_turn_event(&v->turn,PP_TURN_BUTTON,(uint64_t)now_ms());
+    if(v->turn.phase!=PP_TURN_STOPPED) return false;
+    if(!v->failed) publish(v,PP_VOICE_STOPPED,"Conversation stopped. Microphone off");
+    return true;
 }
 static bool json_message(voice_t *v)
 {
+    if(!permitted(v)) return false;
     if(!pp_voice_json_safe(v->message.data,v->message.used)) return false;
     cJSON *root=cJSON_ParseWithLength((const char *)v->message.data,v->message.used);
     const char *type=str(root,"type"); bool ok=type!=NULL;
@@ -403,21 +455,31 @@ static bool json_message(voice_t *v)
             (!channels || (cJSON_IsNumber(channels) && channels->valueint==1)) &&
             (!duration || (cJSON_IsNumber(duration) && duration->valueint==60)) &&
             copy_field(root,"session_id",v->session,sizeof(v->session));
-        if(ok) { v->hello=true; publish(v,PP_VOICE_READY,"OK to start talking"); }
-    } else if(type && !strcmp(type,"tts")) {
-        const char *state=str(root,"state");
-        if(!v->hello || !state) ok=false;
-        else if(v->response && !strcmp(state,"start")) {
-            v->listening=false; v->tts=true;
+        if(ok) { v->hello=true; publish(v,PP_VOICE_READY,"OK to start continuous conversation"); }
+    } else if(type) {
+        const cJSON *session=cJSON_GetObjectItemCaseSensitive(root,"session_id");
+        if(session && (!cJSON_IsString(session) || strcmp(session->valuestring,v->session))) {
+            pp_voice_turn_event(&v->turn,PP_TURN_BAD_SESSION,(uint64_t)now_ms());
+            ok=fail(v,"Voice session changed. OK reconnect");
+        } else if(!strcmp(type,"tts")) {
+            const char *state=str(root,"state");
+            if(!v->hello || !state) ok=false;
+            else if(!strcmp(state,"start") || !strcmp(state,"stop")) {
+                pp_turn_phase_t before=v->turn.phase;
+                pp_voice_turn_event(&v->turn,!strcmp(state,"start")?PP_TURN_TTS_START:PP_TURN_TTS_STOP,
+                    (uint64_t)now_ms());
+                ESP_LOGI(TAG,"TTS control: start=%u phase=%u->%u",(unsigned)!strcmp(state,"start"),
+                    (unsigned)before,(unsigned)v->turn.phase);
+            }
+        } else if(!strcmp(type,"stt")) {
+            if(!v->hello) ok=false;
+            else pp_voice_turn_event(&v->turn,PP_TURN_STT,(uint64_t)now_ms());
+        } else if(!strcmp(type,"goodbye") || !strcmp(type,"error")) {
+            ESP_LOGW(TAG,"Cloud control ended: error=%u phase=%u",(unsigned)!strcmp(type,"error"),(unsigned)v->turn.phase);
+            pp_voice_turn_event(&v->turn,PP_TURN_DISCONNECTED,(uint64_t)now_ms());
+            ok=fail(v,"Cloud ended conversation. OK retry");
         }
-        else if(v->response && !strcmp(state,"stop")) {
-            ok=silence(v); v->tts=v->response=false;
-            pp_voice_codec_close(&v->codec);
-            memory_log("playback released");
-            if(ok) publish(v,PP_VOICE_READY,"OK to talk again");
-        }
-    } else if(type && !strcmp(type,"goodbye")) ok=false;
-    else if(type && !strcmp(type,"error")) ok=false;
+    }
     /* STT, emotion and sentence text are transient cloud events. No transcript
      * is retained and no remote system/reboot/update commands are executed. */
     cJSON_Delete(root); return ok;
@@ -427,10 +489,12 @@ static bool play(voice_t *v)
     if(!v->hello) return false;
     const uint8_t *opus; size_t length;
     if(!pp_voice_unpack(v->version,v->message.data,v->message.used,&opus,&length)) return false;
-    if(!v->response || !v->tts) return true;
+    if(!pp_voice_turn_plays(&v->turn)) return true;
+    if(!permitted(v)) return false;
     /* Allocate only after the TTS control JSON has been freed and immediately
      * before decoding the first packet. Subsequent packets reuse this handle. */
     if(v->codec.mode!=PP_CODEC_DECODE && !codec_select(v,PP_CODEC_DECODE)) return false;
+    if(!permitted(v)) return false;
     esp_audio_dec_in_raw_t in={.buffer=(uint8_t *)opus,.len=length,
         .frame_recover=ESP_AUDIO_DEC_RECOVERY_NONE};
     esp_audio_dec_out_frame_t out={.buffer=(uint8_t *)v->pcm,.len=sizeof(v->pcm)};
@@ -451,7 +515,7 @@ static bool play(voice_t *v)
      * I2S at one format; no extra resampler, no clock changes during a turn. */
     if(!v->write_measured) memory_log("first playback write begin");
     began=esp_timer_get_time();
-    for(size_t offset=0;offset<out.decoded_size && live(v);offset+=320) {
+    for(size_t offset=0;offset<out.decoded_size && permitted(v);offset+=320) {
         size_t n=out.decoded_size-offset; if(n>320) n=320;
         if(bsp_audio_write((uint8_t *)v->pcm+offset,n)!=ESP_OK) return false;
     }
@@ -460,8 +524,19 @@ static bool play(voice_t *v)
         memory_log("first playback write end"); v->write_measured=true;
     }
     if(!stack_margin(v,"playback write")) return false;
-    if(!live(v)) return false;
-    ++v->rx_count; publish(v,PP_VOICE_SPEAKING,"OK to stop the answer"); return true;
+    if(!permitted(v)) return false;
+    pp_voice_turn_event(&v->turn,PP_TURN_RX_AUDIO,(uint64_t)now_ms());
+    ++v->rx_count; publish(v,PP_VOICE_SPEAKING,"Will listen again after the reply"); return true;
+}
+static bool receive_fault(voice_t *v,const char *stage,int code,unsigned opcode,int length)
+{
+    /* Numeric framing/state diagnostics only: never dump cloud text, headers,
+     * session identifiers, close reason strings, or credentials. */
+    ESP_LOGW(TAG,"Receive failed: stage=%s code=%d opcode=%u len=%d phase=%u partial=%u",
+        stage,code,opcode,length,(unsigned)v->turn.phase,(unsigned)(v->message.in_frame||v->message.more));
+    if(!permitted(v)) return false;
+    pp_voice_turn_event(&v->turn,PP_TURN_DISCONNECTED,(uint64_t)now_ms());
+    return fail(v,"Voice connection ended. OK retry");
 }
 static bool receive(voice_t *v)
 {
@@ -470,38 +545,52 @@ static bool receive(voice_t *v)
      * capturing another microphone frame. */
     if(v->hello && !v->message.in_frame) {
         int ready=esp_transport_poll_read(v->ws,0);
-        if(ready<=0) return ready==0;
+        if(ready<0) return receive_fault(v,"poll",ready,0,0);
+        if(!ready) return true;
     }
     int n=esp_transport_read(v->ws,(char *)v->chunk,sizeof(v->chunk),IO_TIMEOUT);
-    if(n<0) return false;
     unsigned op=(unsigned)esp_transport_ws_get_read_opcode(v->ws);
+    if(n<0) return receive_fault(v,"read",n,op,0);
     if(!n && op==WS_TRANSPORT_OPCODES_NONE) return true;
     int size=esp_transport_ws_get_read_payload_len(v->ws);
     bool fin=esp_transport_ws_get_fin_flag(v->ws);
     if(op>=8) {
-        if(size<0 || size>125 || n!=size || !fin) return false;
-        if(op==WS_TRANSPORT_OPCODES_CLOSE) return false;
-        if(op==WS_TRANSPORT_OPCODES_PING && esp_transport_ws_send_raw(v->ws,
-            WS_TRANSPORT_OPCODES_PONG|WS_TRANSPORT_OPCODES_FIN,(char *)v->chunk,n,IO_TIMEOUT)!=n) return false;
-        if(op!=WS_TRANSPORT_OPCODES_PING && op!=WS_TRANSPORT_OPCODES_PONG) return false;
+        if(size<0 || size>125 || n!=size || !fin) return receive_fault(v,"control_bounds",n,op,size);
+        if(op==WS_TRANSPORT_OPCODES_CLOSE) {
+            int close_code=n>=2?((int)v->chunk[0]<<8)|v->chunk[1]:0;
+            return receive_fault(v,"remote_close",close_code,op,size);
+        }
+        if(op==WS_TRANSPORT_OPCODES_PING) {
+            int sent=esp_transport_ws_send_raw(v->ws,WS_TRANSPORT_OPCODES_PONG|WS_TRANSPORT_OPCODES_FIN,
+                (char *)v->chunk,n,IO_TIMEOUT);
+            if(sent!=n) return receive_fault(v,"pong_write",sent,op,n);
+        }
+        if(op!=WS_TRANSPORT_OPCODES_PING && op!=WS_TRANSPORT_OPCODES_PONG)
+            return receive_fault(v,"control_opcode",n,op,size);
         v->last_rx=now_ms(); return true;
     }
-    if(n==0 && size!=0) return true;
-    if(size<0) return false;
+    /* IDF 5.5.3 drops bytes_remaining when a payload read returns zero.
+     * Continuing would interpret its remaining bytes as a new frame header. */
+    if(n==0 && size>0) return receive_fault(v,"payload_timeout",n,op,size);
+    if(size<0) return receive_fault(v,"payload_size",n,op,size);
     int done=pp_voice_assemble(&v->message,op,fin,(size_t)size,v->chunk,(size_t)n);
-    if(done<0) return false;
-    if(done==0) return true;
+    if(done<0) return receive_fault(v,"assembly",done,op,size);
+    if(done==0) { if(!v->fragment_at) v->fragment_at=now_ms(); return true; }
+    v->fragment_at=0;
     v->last_rx=now_ms();
-    return v->message.type==1?json_message(v):play(v);
+    bool ok=v->message.type==1?json_message(v):play(v);
+    return ok || receive_fault(v,v->message.type==1?"json_control":"audio_packet",0,op,(int)v->message.used);
 }
 static bool capture(voice_t *v)
 {
-    /* Chunked reads bound cancellation latency; never record after revocation. */
+    /* Check cancellation between synchronous SDK calls. The BSP has no exposed
+     * timeout, so an individual read already in flight cannot be preempted. */
+    if(!capturing(v)) return false;
     if(!v->read_measured) memory_log("first capture read begin");
     int64_t began=esp_timer_get_time();
-    for(unsigned i=0;i<PCM_BYTES/320 && live(v);++i)
+    for(unsigned i=0;i<PCM_BYTES/320 && capturing(v);++i)
         if(bsp_audio_read((uint8_t *)v->pcm+i*320,320)!=ESP_OK) return false;
-    if(!live(v)) return false;
+    if(!capturing(v)) return false;
     if(!v->read_measured) {
         ESP_LOGI(TAG,"Capture read bytes=%u us=%lld",(unsigned)PCM_BYTES,(long long)(esp_timer_get_time()-began));
         memory_log("first capture read end"); v->read_measured=true;
@@ -511,7 +600,7 @@ static bool capture(voice_t *v)
     for(unsigned i=0;i<PCM_BYTES/2;++i) level+=(unsigned)abs(v->pcm[i]);
     esp_audio_enc_in_frame_t in={.buffer=(uint8_t *)v->pcm,.len=PCM_BYTES};
     esp_audio_enc_out_frame_t out={.buffer=v->tx+16,.len=PP_VOICE_OPUS_MAX};
-    if(v->codec.mode!=PP_CODEC_ENCODE) return false;
+    if(v->codec.mode!=PP_CODEC_ENCODE || !capturing(v)) return false;
     if(!v->encode_measured) memory_log("first capture encode begin");
     began=esp_timer_get_time();
     esp_audio_err_t error=esp_opus_enc_process(v->codec.handle,&in,&out);
@@ -524,9 +613,10 @@ static bool capture(voice_t *v)
     if(error!=ESP_AUDIO_ERR_OK || !valid) return fail(v,"Capture encode failed; see diagnostic log");
     if(!stack_margin(v,"capture encode")) return false;
     size_t n=pp_voice_pack(v->version,v->tx_count*60,v->tx+16,out.encoded_bytes,v->tx,sizeof(v->tx));
-    if(!n || !live(v) || esp_transport_ws_send_raw(v->ws,WS_TRANSPORT_OPCODES_BINARY|WS_TRANSPORT_OPCODES_FIN,
+    if(!n || !capturing(v) || esp_transport_ws_send_raw(v->ws,WS_TRANSPORT_OPCODES_BINARY|WS_TRANSPORT_OPCODES_FIN,
         (char *)v->tx,(int)n,IO_TIMEOUT)!=(int)n) return false;
     ++v->tx_count;
+    pp_voice_turn_event(&v->turn,PP_TURN_TX_FRAME,(uint64_t)now_ms());
     taskENTER_CRITICAL(&snapshot_lock);
     if(live(v)) { snapshot.tx_frames=v->tx_count; snapshot.level=(uint16_t)(level/(PCM_BYTES/2)); }
     taskEXIT_CRITICAL(&snapshot_lock);
@@ -557,21 +647,40 @@ static void worker(void *arg)
     memory_log("secure connection ready");
     if(!audio_prepare(v)) goto done;
     while(live(v)) {
-        if(!receive(v)) { fail(v,"Connection ended. OK retry"); break; }
-        int64_t now=now_ms();
-        if((!v->hello && now-v->last_rx>10000) || now-v->last_rx>90000 ||
-           (v->response && now-v->response_at>60000)) { fail(v,"Voice timed out. OK retry"); break; }
-        if(atomic_exchange(&pressed,0)==v->ticket) {
-            if(v->response) {
-                /* Close the transport to prevent a late old answer being
-                 * mistaken for a response to a new turn. */
-                silence(v); publish(v,PP_VOICE_ERROR,"Answer stopped. OK reconnect"); break;
-            }
-            if(v->hello && !listen_command(v,!v->listening)) { fail(v,"Cannot send listen command"); break; }
+        if(key_requested(v)) break;
+        if(!receive(v)) {
+            if(cancel_pending(v)) key_requested(v);
+            else if(live(v)) fail(v,"Voice connection ended. OK retry");
+            break;
         }
-        if(v->listening && now-v->listen_at>=30000 && !listen_command(v,false)) { fail(v,"Cannot finish recording"); break; }
+        if(key_requested(v)) break;
+        int64_t now=now_ms();
+        if(v->fragment_at && now-v->fragment_at>=5000) {
+            receive_fault(v,"fragment_timeout",0,0,(int)v->message.used); break;
+        }
+        if((!v->hello && now-v->last_rx>10000) || now-v->last_rx>90000) {
+            receive_fault(v,"idle_timeout",0,0,0); break;
+        }
+        pp_voice_turn_event(&v->turn,PP_TURN_TICK,(uint64_t)now);
+        if(v->turn.phase==PP_TURN_STOPPED) {
+            publish(v,PP_VOICE_STOPPED,"Listening limit reached. Microphone off"); break;
+        }
+        if(v->turn.phase==PP_TURN_FAILED) {
+            fail(v,"Voice reply timed out. OK retry"); break;
+        }
+        /* receive has released its JSON root. Cancel wins over every pending
+         * resume and is checked again between drain/flush SDK operations. */
+        if(!pending_turn(v)) {
+            if(cancel_pending(v)) key_requested(v);
+            else if(live(v)) fail(v,"Cannot continue conversation. OK retry");
+            break;
+        }
         pp_audio_apply_volume();
-        if(v->listening && !v->message.in_frame && !capture(v)) { if(live(v)) fail(v,"Recording failed. OK retry"); break; }
+        if(capturing(v) && !v->message.in_frame && !v->message.more && !capture(v)) {
+            if(cancel_pending(v)) key_requested(v);
+            else if(live(v)) fail(v,"Recording failed. OK retry");
+            break;
+        }
         if(now-v->last_ping>=20000) {
             if(esp_transport_ws_send_raw(v->ws,WS_TRANSPORT_OPCODES_PING|WS_TRANSPORT_OPCODES_FIN,"",0,IO_TIMEOUT)<0) {
                 fail(v,"Keepalive failed. OK retry"); break;
@@ -586,6 +695,7 @@ static void worker(void *arg)
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 done:
+    pp_voice_turn_event(&v->turn,PP_TURN_REVOKE,(uint64_t)now_ms());
     pp_voice_codec_close(&v->codec);
     if(v->audio) { silence(v); pp_audio_release(); }
     if(v->ws) { esp_transport_close(v->ws); esp_transport_destroy(v->ws); }

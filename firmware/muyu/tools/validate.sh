@@ -52,6 +52,10 @@ run_static_checks() {
         -o "${test_dir}/test_voice_wire"
     "${test_dir}/test_voice_wire"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_voice/include tests/test_voice_turn.c components/pp_voice/pp_voice_turn.c \
+        -o "${test_dir}/test_voice_turn"
+    "${test_dir}/test_voice_turn"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
         -Itests/voice_stubs -Icomponents/pp_voice/include \
         tests/test_voice_codec.c components/pp_voice/pp_voice_codec.c -o "${test_dir}/test_voice_codec"
     "${test_dir}/test_voice_codec"

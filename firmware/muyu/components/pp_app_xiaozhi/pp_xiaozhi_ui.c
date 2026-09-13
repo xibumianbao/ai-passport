@@ -29,7 +29,7 @@ void pp_xiaozhi_ui_render(const pp_voice_snapshot_t *s)
 {
     static const char *names[]={"Xiaozhi","Starting","Wi-Fi needed","Secure clock",
         "Xiaozhi","Link device","Connecting","Ready","Listening","Thinking",
-        "Speaking","Please retry","Closing"};
+        "Speaking","Please retry","Closing","Stopped"};
     unsigned state=(unsigned)s->state;
     if(state>=sizeof(names)/sizeof(names[0])) state=PP_VOICE_ERROR;
     lv_label_set_text(title,names[state]); lv_label_set_text(detail,s->detail);
@@ -45,7 +45,7 @@ void pp_xiaozhi_ui_render(const pp_voice_snapshot_t *s)
         if(state==PP_VOICE_LISTENING) h=6+(h*(s->level>1800?1800:s->level))/1800;
         lv_obj_set_pos(bars[i],14+(int)i*7,44-(int)h/2); lv_obj_set_size(bars[i],4,(int)h);
     }
-    lv_label_set_text(hint,state==PP_VOICE_LISTENING?"OK: send (30s max)":
-        state==PP_VOICE_READY?"OK: talk":state==PP_VOICE_ERROR?"OK: retry":
+    lv_label_set_text(hint,state==PP_VOICE_LISTENING?"OK: stop conversation":
+        state==PP_VOICE_READY || state==PP_VOICE_STOPPED?"OK: start conversation":state==PP_VOICE_ERROR?"OK: retry":
         state==PP_VOICE_THINKING || state==PP_VOICE_SPEAKING?"OK: stop":"Hold OK: menu");
 }

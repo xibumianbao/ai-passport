@@ -6,7 +6,54 @@ Platform 0.5.0 introduces a standalone Xiaozhi application. The pet remains offl
 personality, pet dialogue and iDA are later stages. Cloud personality and memory
 remain controlled by the device's existing Xiaozhi agent configuration.
 
-## 0.5.2: layered diagnostics, device validation pending
+## 0.5.3: automatic continuous half-duplex conversation
+
+Press OK once at Ready to begin. Speech pauses are handled by the service;
+`listen/start` uses `mode:auto`, and no per-turn `listen/stop` is sent.
+`tts:start` ends capture and releases the encoder. STT is informational:
+the protocol has no finality flag, so STT never stops capture.
+After `tts:stop`, the worker drains speaker DMA, releases the decoder and
+discards stale microphone DMA samples before starting the next automatic turn.
+One codec direction remains active at a time. No local VAD, AEC, wake-word
+model, extra audio-history buffer or background reconnect is introduced.
+
+Short OK stops an active conversation; at Stopped, one OK reconnects and starts
+again. Error retry reconnects to Ready and requires OK to begin recording.
+Long OK/menu, app switching and Paused
+screen-off mode revoke it. Running screen-off mode continues the active session.
+An individual listening turn is limited to 30 seconds; a reply with no audio
+progress for 60 seconds ends with an error. There is no automatic recording
+after cancellation, network failure or timeout. The 40 KiB worker stack and
+fixed-PCM diagnostic remain unchanged while runtime reserve is still measured.
+
+A real PC test completed **two automatic turns on the same WSS/session**:
+114 uploaded/19 received frames, then 113/23. Both recognized the synthetic
+request and returned the expected spoken response. Neither turn sent a manual
+stop. This proves service endpointing and protocol continuity, not device I2S
+handoff or acoustic echo behavior. New 0.5.3 device acceptance is **NOT RUN**.
+Use repository-root `tools/xiaozhi_auto_voice_probe.py` for a bounded in-memory
+probe; its offline tests run with the existing manual probe in CI. Credentials,
+transcripts, DLLs and audio are excluded from the repository.
+
+The production `pp_voice_turn` state machine has host coverage for repeated
+turns, STT-before-TTS, duplicate events, timeout, session mismatch and
+cancellation. Integration checks must still cover the actual blocking codec,
+I2S and transport calls. Read the [sanitized observations](xiaozhi-voice-validation.json).
+Behavior follows the pinned [native application](https://github.com/FoloToy/folo-ai-passport-xiaozhi/blob/d24fce080d86d7cc642f71585f6efde40fb99104/main/application.cc)
+and [automatic listen command](https://github.com/FoloToy/folo-ai-passport-xiaozhi/blob/d24fce080d86d7cc642f71585f6efde40fb99104/main/protocols/protocol.cc).
+
+## 0.5.2: physical recording/playback passed; extended stability pending
+
+The user flashed the delivered diagnostic image and confirmed smooth physical
+conversation after reconnecting. Captured logs show three successful fixed-PCM
+selftests, real microphone encoding, cloud audio decoding and speaker writes;
+minimum observed remaining stack is 16,192 bytes, with no panic in that window.
+The diagnostic signature matches 0.5.2, but this capture did not contain the boot
+version/ELF header. Minimum free heap is 17,360 bytes and largest block 8,192
+bytes, below the project's 20 KiB observation target. One connection ended and
+cleaned up normally; its cause remains unknown. This is **PARTIAL PASS**, not
+long-session or complete lifecycle acceptance. The following explains the
+diagnostic design and historical manual controls.
 
 New 0.5.1 serial evidence matches the firmware version and ELF digest: encoder
 and decoder creation succeeds, but starting recording produces
@@ -105,8 +152,8 @@ with a recording-stage task stack overflow. See the 0.5.2 diagnostic above.
 ## Controls and ownership
 
 - Select Xiaozhi in Apps. Configure Wi-Fi in system Settings if required.
-- At Ready, press OK, speak, then press OK to send. Recording stops at 30 seconds.
-- During a reply, OK stops the session; OK again reconnects. Long OK opens the menu.
+- At Ready, press OK once; pauses send automatically and listening resumes after each reply.
+- During conversation, OK stops the session. Long OK opens the menu. Each listening turn is bounded to 30 seconds.
 - Screen-off Running mode preserves voice; Paused mode revokes the session.
 - Opening a menu, switching apps or pausing revokes recording immediately. A worker
   completes bounded I/O and releases codecs/transport before another session starts.

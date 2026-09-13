@@ -4,6 +4,14 @@
 
 # Changelog
 
+## 0.5.3 - Automatic Xiaozhi conversation
+
+- Start with one OK press, use service endpointing and listen again after each reply drains.
+- Stop capture on TTS start; clear stale microphone samples before the next turn.
+- Add a tested turn state machine, bounded cancellation/timeouts and safe transport diagnostics.
+- Real host testing passed two automatic turns on one connection. 0.5.2 physical recording/playback passed with stability gaps; new 0.5.3 hardware acceptance remains pending.
+- Preserve the 40 KiB worker stack, codec parameters, shared Wi-Fi and protected storage layout.
+
 ## 0.5.2 - Xiaozhi codec diagnostics
 
 - Run fixed PCM through the actual encoder and decoder before voice networking or I2S acquisition.

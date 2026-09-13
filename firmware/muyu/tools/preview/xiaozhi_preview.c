@@ -66,8 +66,9 @@ int main(void)
     strcpy(view.app,"Xiaozhi");
     const struct { pp_voice_state_t state; const char *detail,*file; } cases[]={
         {PP_VOICE_READY,"OK to start talking","passport-xiaozhi-ready.rgb"},
-        {PP_VOICE_LISTENING,"Speak now. OK to send","passport-xiaozhi-listening.rgb"},
-        {PP_VOICE_SPEAKING,"OK to stop the answer","passport-xiaozhi-speaking.rgb"},
+        {PP_VOICE_LISTENING,"Speak; pauses send automatically","passport-xiaozhi-listening.rgb"},
+        {PP_VOICE_SPEAKING,"Listening resumes after reply","passport-xiaozhi-speaking.rgb"},
+        {PP_VOICE_STOPPED,"Conversation stopped","passport-xiaozhi-stopped.rgb"},
         {PP_VOICE_ACTIVATION,"Add this code at xiaozhi.me","passport-xiaozhi-activation.rgb"},
         {PP_VOICE_ERROR,"Connection ended. OK retry","passport-xiaozhi-error.rgb"}};
     for(unsigned i=0;i<sizeof(cases)/sizeof(cases[0]);++i) {
