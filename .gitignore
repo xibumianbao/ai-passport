@@ -1,0 +1,33 @@
+# Local research, OB staging/backups and upstream reference checkout
+/work/
+/reference/
+/AI-Passport-硬件与开发调研.md
+
+# Local connectivity captures; keep source scripts eligible for review
+/ida-auth-doc.html
+/ida-*-result.json
+/IDA-连通测试结果.md
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Generated files and dependency environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+sdkconfig
+sdkconfig.old
+.DS_Store
+Thumbs.db
