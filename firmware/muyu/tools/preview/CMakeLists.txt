@@ -27,10 +27,6 @@ target_include_directories(passport_preview PRIVATE "${FIRMWARE_ROOT}/main")
 target_compile_options(passport_preview PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(passport_preview PRIVATE lvgl::lvgl m)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/capacity_preview.py"
-                "${FIRMWARE_ROOT}/build/capacity-report.json" "${CMAKE_BINARY_DIR}/capacity_preview.h"
-                COMMAND_ERROR_IS_FATAL ANY)
-target_include_directories(passport_preview PRIVATE "${CMAKE_BINARY_DIR}")
 set(PP_PROBE "${CMAKE_BINARY_DIR}/catalog_probe")
 execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/catalog_probe.py" "${PP_PROBE}"
                 COMMAND_ERROR_IS_FATAL ANY)
@@ -45,6 +41,7 @@ target_link_libraries(passport_catalog_test PRIVATE lvgl::lvgl m)
 set(PET_ROOT "${FIRMWARE_ROOT}/components/pp_app_pet")
 set(AVATAR_ROOT "${FIRMWARE_ROOT}/components/pp_avatar")
 add_executable(pet_preview pet_preview.c
+    "${AVATAR_ROOT}/pp_avatar_view.c"
     "${PET_ROOT}/pp_pet.c" "${PET_ROOT}/pp_pet_app.c" "${PET_ROOT}/pp_pet_ui.c"
     "${AVATAR_ROOT}/pp_avatar.c" "${AVATAR_ROOT}/pp_pixel_art.c" "${AVATAR_ROOT}/pp_pixel_buffer.c"
     "${FIRMWARE_ROOT}/assets/images/pp_pet_room_i4.c" "${FIRMWARE_ROOT}/main/font_pet_14.c"
@@ -55,6 +52,7 @@ target_include_directories(pet_preview PRIVATE "${FIRMWARE_ROOT}/main" "${PET_RO
 target_compile_options(pet_preview PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(pet_preview PRIVATE lvgl::lvgl m)
 add_executable(xiaozhi_preview xiaozhi_preview.c
+    "${AVATAR_ROOT}/pp_avatar_view.c"
     "${FIRMWARE_ROOT}/components/pp_app_xiaozhi/pp_xiaozhi_app.c"
     "${FIRMWARE_ROOT}/components/pp_app_xiaozhi/pp_xiaozhi_ui.c"
     "${PET_ROOT}/pp_pet.c" "${PET_ROOT}/pp_pet_app.c" "${PET_ROOT}/pp_pet_ui.c"
@@ -66,3 +64,13 @@ target_include_directories(xiaozhi_preview PRIVATE "${FIRMWARE_ROOT}/main"
     "${FIRMWARE_ROOT}/components/pp_voice/include" "${PET_ROOT}/include" "${AVATAR_ROOT}/include")
 target_compile_options(xiaozhi_preview PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(xiaozhi_preview PRIVATE lvgl::lvgl m)
+
+# Shared presentation tests intentionally do not link the pet model or saves.
+add_executable(avatar_view_test "${FIRMWARE_ROOT}/tests/test_avatar_view.c"
+    "${AVATAR_ROOT}/pp_avatar_view.c" "${AVATAR_ROOT}/pp_pixel_art.c"
+    "${AVATAR_ROOT}/pp_pixel_buffer.c")
+target_include_directories(avatar_view_test PRIVATE "${AVATAR_ROOT}/include")
+target_compile_options(avatar_view_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+target_link_libraries(avatar_view_test PRIVATE lvgl::lvgl m)
+enable_testing()
+add_test(NAME avatar_view_test COMMAND avatar_view_test)

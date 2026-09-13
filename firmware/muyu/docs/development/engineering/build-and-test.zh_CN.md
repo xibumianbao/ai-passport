@@ -44,11 +44,12 @@ cc -std=c11 -Wall -Wextra -Werror -Imain \
 
 ```bash
 ./tools/validate.sh --static    # 仓库一致性、workflow、文档链接、敏感信息、host tests
+./tools/validate.sh --preview   # 真实 LVGL 场景、归属及切换检查
 ./tools/validate.sh --firmware  # ESP-IDF build、merge-bin、偏移与保护布局校验
-./tools/validate.sh             # 完整验证
+./tools/validate.sh --all       # static + preview + firmware，也是默认模式
 ```
 
-完整验证要求预先激活 ESP-IDF 5.5.3。CI 与本地使用同一脚本；若 CI 和本地行为不同，应先修复脚本或环境，而不是维护两份命令。
+预览使用固定 LVGL、主机 C 编译器和 CMake；模拟语音快照不证明设备录放。完整验证要求预先激活 ESP-IDF 5.5.3，包含 preview。CI 与本地使用同一脚本；若 CI 和本地行为不同，应先修复脚本或环境，而不是维护两份命令。
 
 涉及物理外设的改动必须在真机运行硬件指南验收清单，并把“编译通过”与“硬件验证通过”分开记录。
 

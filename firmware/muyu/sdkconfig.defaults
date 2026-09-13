@@ -31,24 +31,13 @@ CONFIG_LV_MEM_SIZE_KILOBYTES=32
 # --- 系统 ---
 CONFIG_FREERTOS_HZ=1000
 
-# --- Bluetooth LE / NimBLE ---
-# ESP32-C3 仅支持 BLE；示例只启用单连接 peripheral 所需的最小 host 配置。
-CONFIG_BT_ENABLED=y
-CONFIG_BT_NIMBLE_ENABLED=y
-CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
-# Keep the upstream minimal peripheral host configuration: IDF 5.5.3 NimBLE
-# teardown and GAP/GATT services require its linked symbols. Runtime advertising
-# remains BLE_GAP_CONN_MODE_NON, so this product does not accept connections.
-CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
-CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
-CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
-CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
-CONFIG_BT_NIMBLE_HOST_BASED_PRIVACY=n
-CONFIG_BT_NIMBLE_NVS_PERSIST=n
+# Neither application uses Bluetooth. Exclude its controller/host from this
+# build, including saved beacon preferences from an older firmware release.
+CONFIG_BT_ENABLED=n
+CONFIG_ESP_COEX_SW_COEXIST_ENABLE=n
 CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=4
 CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=8
 CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=8
-CONFIG_ESP_COEX_SW_COEXIST_ENABLE=y
 
 # Xiaozhi: reuse IDF's TLS WebSocket transport and only the raw Opus APIs.
 CONFIG_ESP_TLS_USING_MBEDTLS=y

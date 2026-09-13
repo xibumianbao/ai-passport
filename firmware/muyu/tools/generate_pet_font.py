@@ -1,4 +1,4 @@
-"""Regenerate the OFL pet font subset; a full font is an external build input."""
+"""Regenerate the shared OFL Yaya font subset from both independent UIs."""
 import argparse
 from pathlib import Path
 import re
@@ -7,7 +7,8 @@ import shutil
 
 root=Path(__file__).resolve().parent.parent
 p=argparse.ArgumentParser(); p.add_argument('font',type=Path); args=p.parse_args()
-source=(root/'components/pp_app_pet/pp_pet_ui.c').read_text(encoding='utf-8')
+source='\n'.join((root/path).read_text(encoding='utf-8') for path in (
+    'components/pp_app_pet/pp_pet_ui.c','components/pp_app_xiaozhi/pp_xiaozhi_ui.c'))
 symbols=''.join(sorted(set(re.findall(r'[\u3000-\u9fff\uff00-\uffef★]',source))))
 out=root/'main/font_pet_14.c'
 subprocess.run([shutil.which('npx') or shutil.which('npx.cmd'),'--yes','--package=lv_font_conv@1.5.3',

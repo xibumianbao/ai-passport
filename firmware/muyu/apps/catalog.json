@@ -3,8 +3,8 @@
   "apps": [
     {
       "id": "xiaozhi",
-      "name": "Xiaozhi",
-      "version": "0.1.0",
+      "name": "Yaya Chat",
+      "version": "0.2.0",
       "author": "AI Passport",
       "component": "pp_app_xiaozhi",
       "symbol": "pp_xiaozhi_module",

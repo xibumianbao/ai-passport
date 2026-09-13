@@ -1,5 +1,5 @@
 #include "pp_pet_ui.h"
-#include "pp_pixel_buffer.h"
+#include "pp_avatar_view.h"
 #include "lvgl.h"
 #include "src/misc/cache/instance/lv_image_cache.h"
 #include <stdio.h>
@@ -8,16 +8,7 @@ LV_FONT_DECLARE(font_pet_14);
 extern const uint8_t pp_pet_room_i4[64+240*148/2];
 static const lv_image_dsc_t room={.header={.magic=LV_IMAGE_HEADER_MAGIC,.cf=LV_COLOR_FORMAT_I4,
     .w=240,.h=148,.stride=120},.data_size=64+240*148/2,.data=pp_pet_room_i4};
-/* One small reusable sprite surface (4.2 KiB), never a full-screen buffer.
- * LVGL row-decodes I4; its 32 KiB pool is not expanded for artwork. */
-static uint8_t sprite_pixels[64+96*88/2];
-static const lv_image_dsc_t sprite={.header={.magic=LV_IMAGE_HEADER_MAGIC,.cf=LV_COLOR_FORMAT_I4,
-    .w=96,.h=88,.stride=48},.data_size=sizeof(sprite_pixels),.data=sprite_pixels};
 static lv_obj_t *s_pet,*s_title,*s_coins,*s_message,*s_food,*s_energy,*s_xp,*s_buttons[3],*s_labels[3];
-static unsigned last_frame=UINT32_MAX;
-static pp_avatar_pose_t last_pose;
-static pp_avatar_state_t last_voice;
-static bool last_evolved;
 static lv_obj_t *box(lv_obj_t *parent,int x,int y,int w,int h,uint32_t color)
 {
     lv_obj_t *o=lv_obj_create(parent); lv_obj_remove_style_all(o); lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);
@@ -36,7 +27,7 @@ static void text(lv_obj_t *o,const char *value)
 }
 static void deleted(lv_event_t *e)
 {
-    (void)e; lv_image_cache_drop(&sprite); lv_image_cache_drop(&room);
+    (void)e; lv_image_cache_drop(&room);
 }
 void pp_pet_ui_create(lv_obj_t *parent)
 {
@@ -51,8 +42,7 @@ void pp_pet_ui_create(lv_obj_t *parent)
     box(root,185,17,46,4,0xdacdb5); s_energy=box(root,185,17,32,4,0xb78a68);
     /* Center the original pixel scene in the extra room; never stretch a bitmap. */
     lv_obj_t *scene=lv_image_create(root); lv_image_set_src(scene,&room); lv_obj_set_pos(scene,0,25+extra/2);
-    pp_pixel_buffer_t pixels; pp_pixel_buffer_init(&pixels,sprite_pixels,96,88);
-    s_pet=lv_image_create(root); lv_image_set_src(s_pet,&sprite); lv_obj_set_pos(s_pet,72,77+extra/2);
+    s_pet=pp_avatar_view_create(root,72,77+extra/2);
     s_message=label(root,8,height-58,224,0x506f66); lv_obj_set_style_text_align(s_message,LV_TEXT_ALIGN_CENTER,0);
     box(root,12,height-37,216,3,0xdacdb5); s_xp=box(root,12,height-37,1,3,0x50877a);
     for(unsigned i=0;i<3;++i) {
@@ -60,7 +50,6 @@ void pp_pet_ui_create(lv_obj_t *parent)
         s_labels[i]=label(s_buttons[i],1,3,70,0x283f45);
         lv_obj_set_style_text_align(s_labels[i],LV_TEXT_ALIGN_CENTER,0);
     }
-    last_frame=UINT32_MAX;
 }
 static pp_avatar_pose_t pose(const pp_pet_t *p)
 {
@@ -118,13 +107,8 @@ void pp_pet_ui_render(const pp_pet_t *p,pp_avatar_state_t voice)
     /* Visual clock remains independent when future voice pauses the economy. */
     pp_avatar_pose_t activity=pose(p); unsigned frame=lv_tick_get()/200;
     if(voice!=AVATAR_IDLE) activity=AVATAR_LOOK;
-    if(frame!=last_frame || activity!=last_pose || voice!=last_voice || (level>=3)!=last_evolved) {
-        pp_pixel_buffer_t pixels; pp_pixel_buffer_init(&pixels,sprite_pixels,96,88);
-        pp_pixel_sink_t sink={pp_pixel_buffer_rect,&pixels};
-        pp_avatar_frame_t f={activity,voice,frame,level>=3}; pp_avatar_draw(&sink,10,8,&f);
-        lv_image_cache_drop(&sprite); lv_obj_invalidate(s_pet);
-        last_frame=frame; last_pose=activity; last_voice=voice; last_evolved=level>=3;
-    }
+    pp_avatar_frame_t f={activity,voice,frame,level>=3};
+    pp_avatar_view_render(s_pet,&f);
     text(s_message,message(p,activity,voice));
     const char *labels[]={p->save.fullness>60?"不饿啦":p->save.coins>=5?"喂食 5★":"免费口粮","陪玩","休息"};
     for(unsigned i=0;i<3;++i) {

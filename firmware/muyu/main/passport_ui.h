@@ -8,7 +8,7 @@ typedef struct {
     unsigned keyboard_page, keyboard_selected, keyboard_length;
     bool keyboard_secret;
     const pp_app_module_t *module;
-    pp_link_state_t wifi, ble;
+    pp_link_state_t wifi;
     char app[24], title[24], detail[320], input_name[33], input_text[64];
     char rows[6][48], footer[64];
 } pp_view_t;

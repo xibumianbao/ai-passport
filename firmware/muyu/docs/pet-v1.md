@@ -2,11 +2,9 @@
 
 # Yaya Pet test version
 
-Platform 0.4.0 adds the first pet application, version 0.1.0. Open **Applications → Yaya Pet**. Existing Muyu and system settings remain available. This is a device-test build; successful automated tests do not constitute hardware acceptance.
+Platform 0.6.0 keeps Yaya Pet 0.1.0 as an independent offline application. Open **Applications → Yaya Pet**. Yaya Chat is a separate menu entry sharing artwork only; chatting never loads or changes the pet save. New device acceptance remains pending.
 
-Platform 0.4.1 moves Wi-Fi/BLE to icons beside the battery and expands the app area
-to 240×265. The scene is centered, bottom actions follow the container height,
-and the original small artwork, game rules and save format remain unchanged.
+Platform 0.6.0 keeps Wi-Fi beside the battery, removes Bluetooth and the permanent footer, and expands content to 240x290. The original scene stays native-sized; bottom actions follow container height. Game rules and save format are unchanged.
 
 ## Play with few buttons
 
@@ -34,15 +32,15 @@ Both screen-off modes pause the pet's economics and ignore invisible purchases. 
 ## Resource and integration design
 
 - An original 240×148, 16-color I4 room costs **17,824 Flash bytes**, including its palette. `pet_art_export.c` regenerates it from palette-colored pixel spans; the static gate compares every byte.
-- A single 96×88 I4 sprite surface costs **4,288 static RAM bytes**. Faces, leaf ears, book, food, quilt and ball are drawn into it; no animation frame collection is stored. The same drawing code handles both forms and simulated dialogue states.
+- A single 96×88 I4 sprite surface shared exclusively with Yaya Chat costs **4,288 static RAM bytes**. Faces, leaf ears, book, food, quilt and ball are drawn into it; no animation frame collection is stored. The same drawing code handles both forms and simulated dialogue states.
 - LVGL uses its existing 32 KiB pool and the board's 20-row RGB565 display buffer. `LV_BIN_DECODER_RAM_LOAD=0` row-decodes indexed pictures instead of expanding the room into a 142,080-byte ARGB8888 buffer. There is no full-screen application framebuffer.
 - The 14-pixel, 2-bpp Source Han Sans SC Medium subset contains ASCII plus only the UI glyphs. Its OFL license is retained. Regenerate with `python tools/generate_pet_font.py /path/to/SourceHanSansSC-Medium.otf`.
-- The firmware gate limits pet-owned linked Flash to 128 KiB, shared Avatar code to 48 KiB, and leaves at least **1.25 MiB** in the existing 3 MiB program partition. These are enforced reservations, not a claim that two unimplemented voice integrations are proven to fit. Consult the delivered `capacity-report.json` for actual numbers; shared Avatar bytes count once.
+- The firmware gate limits pet-owned linked Flash to 128 KiB, shared Avatar code to 48 KiB, and leaves at least **512 KiB** in the existing 3 MiB program partition. These are enforced reservations after adding voice, not a guarantee about future applications. Consult the delivered `capacity-report.json` for actual numbers; shared Avatar bytes count once.
 - The optional module `tick(ctx, elapsed_ms, showing)` runs on the control task outside the LVGL lock. It owns game timing and storage; `render_ui` only paints snapshots under the existing lock. No new RTOS task, LVGL timer, driver, Wi-Fi stack or audio service is created by the pet.
 
 User art direction references the detail and palette discipline of Dave the Diver. All shipped art is original pixel construction; no game screenshots, characters, large photographs or third-party game textures are embedded.
 
-The planned product direction is **pet + Xiaozhi**, with **IDA as a separate application entry** and shared voice services where appropriate. See [voice integration](voice-integration.md). This release contains no real microphone capture, Xiaozhi connection or IDA call. Listening/thinking/speaking previews exercise presentation only.
+The current direction is **independent Yaya Pet and Yaya Chat**, sharing appearance without connecting game state. The earlier pet-data/voice plan is cancelled; existing cloud Qixi configuration is unchanged. See [ownership boundaries](voice-integration.md). The pet has no microphone, network or IDA call; its dialogue fixtures test artwork only.
 
 ## Validation and hardware checklist
 
@@ -53,9 +51,9 @@ Before accepting the BIN on hardware:
 1. Flash the checked full BIN at `0x0`, with whole-chip erase disabled. Confirm Wi-Fi/settings and device identity remain intact.
 2. Open Yaya Pet, observe look/read/help/walk, and allow a full active minute. Check one reward, not repeated rewards.
 3. Feed once, skip the animation and press again while full. Confirm the price, remaining coins and free-food path.
-4. Play and rest; wake once, switch to Muyu and return, then reboot. Check the same pet ID/values, no duplicate rewards or free energy.
+4. Play and rest; wake once, switch to Yaya Chat and return, then reboot. Check the same pet ID/values, no duplicate rewards or free energy.
 5. Reach level 3 across short sessions. Check evolved appearance, level-5 cap and higher earnings.
-6. Test both dark modes and system menu. No hidden spending, automatic growth or leftover Muyu sound while the pet is open.
+6. Test both dark modes and system menu. No hidden spending, automatic growth or leftover conversation audio while the pet is open.
 7. Check real LCD colors, text clarity, animation pace, button responsiveness, repeated switching, runtime free/minimum heap and extended stability. Report these measurements separately from host previews.
 
-Keep the previously accepted 0.3.0 package for recovery. The new image still ends before settings at `0x310000`; protected `cardid@0x356000` and all partitions are unchanged.
+Keep the previously accepted package for recovery. The new image still ends before settings at `0x310000`; protected `cardid@0x356000` and all partitions are unchanged.

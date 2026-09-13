@@ -1,51 +1,104 @@
 #include "pp_xiaozhi_ui.h"
+#include "pp_avatar_view.h"
 #include "lvgl.h"
-#include <stdio.h>
-static lv_obj_t *title,*detail,*code,*hint,*orb,*bars[9];
-static lv_obj_t *label(lv_obj_t *p,int x,int y,int w,const lv_font_t *font)
+#include "src/misc/cache/instance/lv_image_cache.h"
+#include <string.h>
+
+LV_FONT_DECLARE(font_pet_14);
+extern const uint8_t pp_pet_room_i4[64+240*148/2];
+/* Reuse the existing immutable room and the shared 96 x 88 avatar surface.
+ * No second sprite buffer, new bitmap, image transform, pet model or save. */
+static const lv_image_dsc_t room={.header={.magic=LV_IMAGE_HEADER_MAGIC,.cf=LV_COLOR_FORMAT_I4,
+    .w=240,.h=148,.stride=120},.data_size=64+240*148/2,.data=pp_pet_room_i4};
+static lv_obj_t *s_avatar,*s_bubble,*s_title,*s_detail,*s_code,*s_action,*s_tail[2];
+static int s_room_y;
+
+static lv_obj_t *box(lv_obj_t *parent,int x,int y,int w,int h,uint32_t color)
 {
-    lv_obj_t *o=lv_label_create(p); lv_obj_set_pos(o,x,y); lv_obj_set_width(o,w);
-    lv_obj_set_style_text_font(o,font,0); lv_obj_set_style_text_color(o,lv_color_hex(0xe9f2eb),0);
-    lv_obj_set_style_text_align(o,LV_TEXT_ALIGN_CENTER,0); lv_label_set_text(o,""); return o;
+    lv_obj_t *o=lv_obj_create(parent); lv_obj_remove_style_all(o);
+    lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(o,x,y); lv_obj_set_size(o,w,h);
+    lv_obj_set_style_bg_color(o,lv_color_hex(color),0); lv_obj_set_style_bg_opa(o,LV_OPA_COVER,0);
+    return o;
+}
+static lv_obj_t *label(lv_obj_t *parent,int x,int y,int w,int h,const lv_font_t *font,uint32_t color)
+{
+    lv_obj_t *o=lv_label_create(parent); lv_obj_set_pos(o,x,y); lv_obj_set_size(o,w,h);
+    lv_obj_set_style_text_font(o,font,0); lv_obj_set_style_text_color(o,lv_color_hex(color),0);
+    lv_obj_set_style_text_align(o,LV_TEXT_ALIGN_CENTER,0); lv_label_set_text(o,"");
+    return o;
+}
+static void text(lv_obj_t *o,const char *value)
+{
+    if(strcmp(lv_label_get_text(o),value)) lv_label_set_text(o,value);
+}
+static void visible(lv_obj_t *o,bool show)
+{
+    if(show) lv_obj_remove_flag(o,LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
+}
+static void deleted(lv_event_t *event)
+{
+    (void)event; lv_image_cache_drop(&room);
+    /* The shared avatar's own DELETE handler drops its sprite cache/owner. */
+    s_avatar=s_bubble=s_title=s_detail=s_code=s_action=NULL;
 }
 void pp_xiaozhi_ui_create(lv_obj_t *parent)
 {
-    lv_obj_set_style_bg_color(parent,lv_color_hex(0x172825),0);
-    title=label(parent,10,14,220,&lv_font_montserrat_20);
-    orb=lv_obj_create(parent); lv_obj_remove_style_all(orb); lv_obj_remove_flag(orb,LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_pos(orb,76,55); lv_obj_set_size(orb,88,88);
-    lv_obj_set_style_bg_opa(orb,LV_OPA_COVER,0); lv_obj_set_style_radius(orb,44,0);
-    for(unsigned i=0;i<9;++i) {
-        bars[i]=lv_obj_create(orb); lv_obj_remove_style_all(bars[i]);
-        lv_obj_set_style_bg_color(bars[i],lv_color_hex(0x172825),0);
-        lv_obj_set_style_bg_opa(bars[i],LV_OPA_COVER,0);
-    }
-    code=label(parent,10,83,220,&lv_font_montserrat_20);
-    detail=label(parent,14,158,212,&lv_font_montserrat_14);
-    lv_obj_set_height(detail,52);
-    hint=label(parent,12,224,216,&lv_font_montserrat_14);
+    int height=lv_obj_get_height(parent);
+    lv_obj_t *root=box(parent,0,0,240,height,0xf5ebd6);
+    lv_obj_add_event_cb(root,deleted,LV_EVENT_DELETE,NULL);
+    s_room_y=height-148;
+    lv_obj_t *scene=lv_image_create(root); lv_image_set_src(scene,&room); lv_obj_set_pos(scene,0,s_room_y);
+    s_avatar=pp_avatar_view_create(root,72,s_room_y+52);
+
+    /* A quiet speech card above the room; ordinary states show the companion's
+     * intent, without a permanent toolbar or button-instruction footer. */
+    s_bubble=box(root,14,16,212,90,0xfff7e6);
+    lv_obj_set_style_border_width(s_bubble,2,0);
+    lv_obj_set_style_border_color(s_bubble,lv_color_hex(0xd2bd97),0);
+    lv_obj_set_style_radius(s_bubble,4,0);
+    s_tail[0]=box(root,113,106,14,3,0xd2bd97); s_tail[1]=box(root,117,109,6,4,0xd2bd97);
+    s_title=label(root,24,32,192,22,&font_pet_14,0x283f45);
+    s_detail=label(root,24,62,192,40,&font_pet_14,0x506f66);
+    s_code=label(root,24,53,192,26,&lv_font_montserrat_20,0x283f45);
+    s_action=label(root,14,s_room_y-25,212,20,&font_pet_14,0x936344);
+    visible(s_code,false); visible(s_action,false);
 }
 void pp_xiaozhi_ui_render(const pp_voice_snapshot_t *s)
 {
-    static const char *names[]={"Xiaozhi","Starting","Wi-Fi needed","Secure clock",
-        "Xiaozhi","Link device","Connecting","Ready","Listening","Thinking",
-        "Speaking","Please retry","Closing","Stopped"};
-    unsigned state=(unsigned)s->state;
-    if(state>=sizeof(names)/sizeof(names[0])) state=PP_VOICE_ERROR;
-    lv_label_set_text(title,names[state]); lv_label_set_text(detail,s->detail);
-    bool activation=state==PP_VOICE_ACTIVATION;
-    if(activation) lv_obj_add_flag(orb,LV_OBJ_FLAG_HIDDEN); else lv_obj_remove_flag(orb,LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(code,activation?s->activation:"");
-    uint32_t color=state==PP_VOICE_ERROR?0xe6aa83:state==PP_VOICE_LISTENING?0x9bd9b5:0xc6e2d8;
-    lv_obj_set_style_bg_color(orb,lv_color_hex(color),0);
-    bool animated=state==PP_VOICE_LISTENING || state==PP_VOICE_SPEAKING || state==PP_VOICE_THINKING;
-    unsigned phase=lv_tick_get()/160;
-    for(unsigned i=0;i<9;++i) {
-        unsigned h=animated?10+((i*7+phase*3)%24):6+(i<5?i:8-i)*4;
-        if(state==PP_VOICE_LISTENING) h=6+(h*(s->level>1800?1800:s->level))/1800;
-        lv_obj_set_pos(bars[i],14+(int)i*7,44-(int)h/2); lv_obj_set_size(bars[i],4,(int)h);
+    if(!s_title) return;
+    pp_voice_state_t state=s->state;
+    if((unsigned)state>PP_VOICE_STOPPED) state=PP_VOICE_ERROR;
+    const char *title="芽芽来啦",*detail="稍等一下",*action="";
+    pp_avatar_state_t voice=AVATAR_IDLE;
+    switch(state) {
+    case PP_VOICE_READY: title="我在呀"; detail="陪你说说话"; break;
+    case PP_VOICE_LISTENING: title="我在听"; detail="慢慢说 不着急"; voice=AVATAR_LISTENING; break;
+    case PP_VOICE_THINKING: title="让我想一想"; detail="..."; voice=AVATAR_THINKING; break;
+    case PP_VOICE_SPEAKING: title="说给你听"; detail=""; voice=AVATAR_SPEAKING; break;
+    case PP_VOICE_STOPPED: title="我在这里"; detail="陪着你"; break;
+    case PP_VOICE_WIFI: title="等你连上 Wi-Fi"; detail="设置 > Wi-Fi"; voice=AVATAR_OFFLINE; break;
+    case PP_VOICE_ACTIVATION:
+        title="和芽芽见面吧"; detail="xiaozhi.me"; action="添加设备 输入上方代码"; break;
+    case PP_VOICE_ERROR:
+        title="没连上"; detail=s->detail; action="按 OK 重试"; voice=AVATAR_OFFLINE; break;
+    case PP_VOICE_OFF: case PP_VOICE_STOPPING:
+        title="一会儿见"; detail=""; break;
+    default: voice=AVATAR_THINKING; break;
     }
-    lv_label_set_text(hint,state==PP_VOICE_LISTENING?"OK: stop conversation":
-        state==PP_VOICE_READY || state==PP_VOICE_STOPPED?"OK: start conversation":state==PP_VOICE_ERROR?"OK: retry":
-        state==PP_VOICE_THINKING || state==PP_VOICE_SPEAKING?"OK: stop":"Hold OK: menu");
+    bool error=state==PP_VOICE_ERROR,activation=state==PP_VOICE_ACTIVATION;
+    text(s_title,title); text(s_detail,detail); text(s_action,action);
+    visible(s_action,*action!=0); visible(s_code,activation);
+    for(unsigned i=0;i<2;++i) visible(s_tail[i],!error&&!activation);
+    if(activation) text(s_code,s->activation);
+    /* Preserve exact first-failure diagnostics and readable activation digits.
+     * Existing Latin font keeps arbitrary SDK error text legible. */
+    lv_obj_set_style_text_font(s_detail,error?&lv_font_montserrat_14:&font_pet_14,0);
+    lv_obj_set_y(s_title,error||activation?22:32);
+    lv_obj_set_y(s_detail,activation?85:error?48:62);
+    lv_obj_set_height(s_detail,error?60:activation?20:40);
+    lv_obj_set_height(s_bubble,error||activation?s_room_y-45:90);
+    lv_obj_set_style_border_color(s_bubble,lv_color_hex(error?0xad6857:0xd2bd97),0);
+    pp_avatar_frame_t frame={.pose=AVATAR_LOOK,.voice=voice,.frame=lv_tick_get()/200,.evolved=false};
+    pp_avatar_view_render(s_avatar,&frame);
 }

@@ -7,7 +7,7 @@ typedef struct {
     void (*focus)(void *ctx, bool focused);
     void (*key)(void *ctx, pp_key_t key);
     void *ctx;
-    /* Control task holds LVGL lock. create gets a 240x265 content container.
+    /* Control task holds LVGL lock. create gets a 240x290 content container.
      * Read the parent dimensions instead of copying the shell's coordinates.
      * stop must join UI producers before the platform removes that container. */
     void (*create_ui)(struct _lv_obj_t *parent);

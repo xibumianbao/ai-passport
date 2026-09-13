@@ -17,8 +17,9 @@ assert Partition(1, 2, 0x310000, 0x6000, 'settings') in partitions
 config = (folder / 'sdkconfig').read_text(encoding='utf-8')
 assert 'CONFIG_IDF_TARGET="esp32c3"' in config
 assert 'CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y' in config
-assert 'CONFIG_BT_ENABLED=y' in config
-assert 'CONFIG_BT_NIMBLE_ENABLED=y' in config
+assert '# CONFIG_BT_ENABLED is not set' in config, 'Bluetooth must stay disabled in this firmware'
+for option in ('CONFIG_BT_ENABLED', 'CONFIG_BT_NIMBLE_ENABLED', 'CONFIG_ESP_COEX_SW_COEXIST_ENABLE'):
+    assert option+'=y' not in config, 'Unexpected Bluetooth/coexistence runtime: '+option
 root=Path(__file__).resolve().parent.parent
 version=re.search(r'#define PP_VERSION "([^"]+)"',(root/'main/passport_core.h').read_text()).group(1)
 assert 'set(PROJECT_VER "'+version+'")' in (root/'CMakeLists.txt').read_text()

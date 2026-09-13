@@ -4,6 +4,14 @@
 
 # Changelog
 
+## 0.6.0 - Independent Yaya care and chat
+
+- Keep Yaya Pet and Yaya Chat as independent menu entries. Share only pixel artwork; chat does not read or change pet saves, and the existing Qixi cloud configuration is unchanged.
+- Replace the Xiaozhi orb with the shared room/avatar and state-driven speech card. Reuse one 4,288-byte sprite surface; keep the existing voice service, TLS, Opus and 40 KiB worker unchanged.
+- Expand content to 240x290 and remove the permanent bottom hint bar. Preserve activation/errors, keyboard help and button-failure visibility.
+- Remove Storage, About, device/runtime/capacity subpages and Bluetooth. Disable BT/NimBLE/coexistence in the build; retain Wi-Fi provisioning, volume, brightness, timeout and screen-off modes.
+- Keep developer capacity/link reports and the protected layout/reserve gates. Add the shared `--preview` gate to complete validation. New device acceptance and measured memory savings remain pending.
+
 ## 0.5.3 - Automatic Xiaozhi conversation
 
 - Start with one OK press, use service endpointing and listen again after each reply drains.

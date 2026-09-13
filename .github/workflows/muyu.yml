@@ -80,16 +80,7 @@ jobs:
           retention-days: 30
       - name: Render the actual LVGL UI and exercise rapid presses
         working-directory: firmware/muyu
-        run: |
-          cmake -S tools/preview -B build/preview -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build/preview --parallel 4
-          cd build
-          ./preview/passport_preview
-          ./preview/passport_catalog_test
-          ./preview/pet_preview
-          ./preview/xiaozhi_preview
-          ./preview/muyu_audio muyu-knock.pcm
-          python3 ../tools/preview/write_media.py
+        run: ./tools/validate.sh --preview
       - name: Upload UI previews and generated tone
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

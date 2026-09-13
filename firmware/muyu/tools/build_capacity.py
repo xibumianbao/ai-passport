@@ -1,4 +1,4 @@
-"""Embed and verify per-app linked contributions; never apportion shared SDKs."""
+"""Measure and verify final linked contributions; never apportion shared SDKs."""
 import argparse
 import json
 import os
@@ -55,7 +55,7 @@ def main():
     raw=json.loads(subprocess.check_output(cmd,text=True,env=env)); report=analyze(raw,read_catalog(root),(b/'FoloToy-AI-Passport.bin').stat().st_size)
     h=b/'passport_generated/passport_metrics.h'; expected=initializer(report)
     if args.verify:
-        assert h.read_text()==expected, 'Capacity changed after second link; refuse stale device metrics'
+        assert h.read_text()==expected, 'Capacity changed after second link; refuse stale build accounting'
         if any(a['id']=='pet' for a in report['apps']):
             pet=next(a for a in report['apps'] if a['id']=='pet')
             avatar=next(a for a in report['shared_components'] if a['component']=='pp_avatar')
@@ -68,6 +68,6 @@ def main():
             print(f'App capacity: PASS (pet <=128 KiB, avatar <=48 KiB; >={reserve//1024} KiB headroom)')
         (b/'capacity-report.json').write_text(json.dumps(report,indent=2)+'\n')
         # Sanitized summary only: raw map contains local build paths.
-        print('Capacity report: PASS (final image and application archive sizes match embedded metrics)')
+        print('Capacity report: PASS (final image and linked archive accounting verified)')
     else: h.write_text(expected)
 if __name__=='__main__': main()

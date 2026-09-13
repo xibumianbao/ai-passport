@@ -5,7 +5,7 @@ mode="${1:---all}"
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 usage() {
-    echo "Usage: $0 [--all|--static|--firmware]" >&2
+    echo "Usage: $0 [--all|--static|--firmware|--preview]" >&2
 }
 
 run_static_checks() {
@@ -76,6 +76,29 @@ run_static_checks() {
     echo "Host tests: PASS"
 }
 
+run_preview_checks() (
+    local preview_build_dir="${PREVIEW_BUILD_DIR:-${repo_root}/build/preview}"
+    local -a cmake_args=(-S tools/preview -B "${preview_build_dir}" -DCMAKE_BUILD_TYPE=Debug)
+    # A local pinned LVGL checkout can be supplied without fetching components.
+    # CI uses the managed LVGL source resolved by the preceding firmware build.
+    if [[ -n "${LVGL_SOURCE_DIR:-}" ]]; then
+        cmake_args+=("-DLVGL_SOURCE_DIR=${LVGL_SOURCE_DIR}")
+    fi
+    cmake "${cmake_args[@]}"
+    preview_build_dir="$(cd -- "${preview_build_dir}" && pwd)"
+    cmake --build "${preview_build_dir}" --parallel "${PREVIEW_JOBS:-4}"
+    mkdir -p "${repo_root}/build"
+    cd "${repo_root}/build"
+    "${preview_build_dir}/avatar_view_test"
+    "${preview_build_dir}/passport_preview"
+    "${preview_build_dir}/passport_catalog_test"
+    "${preview_build_dir}/pet_preview"
+    "${preview_build_dir}/xiaozhi_preview"
+    "${preview_build_dir}/muyu_audio" muyu-knock.pcm
+    python3 "${repo_root}/tools/preview/write_media.py"
+    echo "LVGL preview and lifecycle tests: PASS"
+)
+
 run_firmware_checks() (
     local validation_build_dir
 
@@ -116,12 +139,16 @@ case "${mode}" in
     --all)
         run_static_checks
         run_firmware_checks
+        run_preview_checks
         ;;
     --static)
         run_static_checks
         ;;
     --firmware)
         run_firmware_checks
+        ;;
+    --preview)
+        run_preview_checks
         ;;
     *)
         usage

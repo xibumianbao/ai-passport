@@ -90,7 +90,6 @@ static void cancel_join(pp_join_state_t result)
 }
 static void publish(void)
 {
-    s_state.ble_on=pp_ble_advertising(); s_state.ble_error=pp_ble_failed();
     s_state.saved=s_saved.ssid[0]!=0;
     snprintf(s_state.saved_ssid,sizeof(s_state.saved_ssid),"%s",s_saved.ssid);
     xSemaphoreTake(s_lock,portMAX_DELAY); s_snapshot=s_state; xSemaphoreGive(s_lock);
@@ -158,8 +157,6 @@ static void radio_worker(void *unused)
                 s_candidate=m.credentials; s_state.join_id=m.request_id; s_state.join=PP_JOIN_WAIT;
                 s_join_deadline=esp_timer_get_time()+25000000; s_enabled=true; s_retries=0;
                 e=connect_target(); if(e!=ESP_OK) cancel_join(PP_JOIN_FAILED); break;
-            case PP_RADIO_BLE_ON: e=pp_ble_enable(); break;
-            case PP_RADIO_BLE_OFF: e=pp_ble_disable(); break;
             default: e=ESP_ERR_INVALID_ARG; break;
             }
             s_state.error=e; memset(&m,0,sizeof(m));
@@ -195,13 +192,12 @@ static void radio_worker(void *unused)
         publish();
     }
 }
-esp_err_t pp_radio_init(bool wifi,bool ble)
+esp_err_t pp_radio_init(bool wifi)
 {
     s_lock=xSemaphoreCreateMutex(); s_queue=xQueueCreate(4,sizeof(message_t));
     if(!s_lock || !s_queue) return ESP_ERR_NO_MEM;
     if(xTaskCreate(radio_worker,"pp_radio",6144,NULL,3,NULL)!=pdPASS) return ESP_ERR_NO_MEM;
     if(wifi) pp_radio_request(PP_RADIO_WIFI_ON);
-    if(ble) pp_radio_request(PP_RADIO_BLE_ON);
     return ESP_OK;
 }
 bool pp_radio_request(pp_radio_cmd_t cmd)

@@ -54,7 +54,7 @@ static pp_pet_save_t read_save(void) { pp_pet_save_t s; assert(pp_pet_decode(&s,
 static void checked_create_ui(lv_obj_t *parent)
 {
     /* The shell must expose real geometry before app creation, not after flush. */
-    assert(lv_obj_get_width(parent)==240 && lv_obj_get_height(parent)==265);
+    assert(lv_obj_get_width(parent)==240 && lv_obj_get_height(parent)==290);
     assert(lv_obj_get_y(parent)==30);
     pp_pet_module.create_ui(parent);
 }

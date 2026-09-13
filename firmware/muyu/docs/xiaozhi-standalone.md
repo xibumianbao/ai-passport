@@ -1,10 +1,14 @@
-# Standalone Xiaozhi test build
+# Yaya Chat: standalone Xiaozhi application
 
 English | [简体中文](xiaozhi-standalone.zh_CN.md)
 
-Platform 0.5.0 introduces a standalone Xiaozhi application. The pet remains offline;
-personality, pet dialogue and iDA are later stages. Cloud personality and memory
-remain controlled by the device's existing Xiaozhi agent configuration.
+Platform 0.6.0 names the independent conversation entry **Yaya Chat**. Yaya Pet remains an offline game without a model/save connection to chat. Both reuse pixel artwork; the existing Qixi cloud personality, voice and memory configuration is unchanged. The former pet-data/voice integration plan is cancelled.
+
+## 0.6.0: shared appearance, independent application
+
+The view uses the existing room/font and one shared 96x88 I4 sprite. Listening/thinking/speaking follow existing voice snapshots; activation and errors stay visible. No pet model/store, animation worker, large image or second sprite buffer is added. Content is 240x290 without a permanent footer.
+
+`pp_voice`, TLS, Opus, the 40 KiB worker and the automatic conversation behavior below are unchanged. Bluetooth/NimBLE and Storage/About/device/runtime/capacity pages are removed; Wi-Fi, audio/display settings and screen modes remain. Developer capacity reports continue. New 0.6.0 Device tests are NOT RUN. See [current ownership boundaries](voice-integration.md).
 
 ## 0.5.3: automatic continuous half-duplex conversation
 
@@ -151,7 +155,7 @@ with a recording-stage task stack overflow. See the 0.5.2 diagnostic above.
 
 ## Controls and ownership
 
-- Select Xiaozhi in Apps. Configure Wi-Fi in system Settings if required.
+- Select Yaya Chat in Apps. Configure Wi-Fi in system Settings if required.
 - At Ready, press OK once; pauses send automatically and listening resumes after each reply.
 - During conversation, OK stops the session. Long OK opens the menu. Each listening turn is bounded to 30 seconds.
 - Screen-off Running mode preserves voice; Paused mode revokes the session.
@@ -169,7 +173,7 @@ transcripts and session IDs stay in RAM and are never written to logs or files.
 Discovery uses the physical station MAC with the official OTA discovery endpoint;
 firmware update URLs and remote reboot/update commands are ignored.
 
-The active catalog contains Xiaozhi and Yaya Pet. Archived Muyu sources remain for
+The active catalog contains Yaya Chat (stable ID `xiaozhi`) and Yaya Pet. Archived Muyu sources remain for
 regression/reference, but its app, font, tone and resident audio worker are absent
 from the new firmware link. Pet saves and Wi-Fi configuration retain their namespaces.
 No partition moves: program 3 MiB, settings at 0x310000, cardid at 0x356000.

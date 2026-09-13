@@ -26,7 +26,8 @@ def package(source,output):
     assert capacity['program_free']==0x300000-capacity['image_bytes']
     log=(source/'ci-log.txt').read_text(encoding='utf-8-sig')
     required=['Passport core: PASS','Passport extensions: PASS','Passport UI: PASS','Application scaffold: PASS','Capacity report: PASS','Firmware build: PASS',
-              'Pet logic: PASS','Pet NVS adapter: PASS','Pet assets: PASS','Pet lifecycle: PASS','Pet UI: PASS','Pet capacity: PASS']
+              'Pet logic: PASS','Pet NVS adapter: PASS','Pet assets: PASS','Pet lifecycle: PASS','Pet UI: PASS','App capacity: PASS',
+              'Yaya UI/lifecycle: PASS','LVGL preview and lifecycle tests: PASS']
     evidence=[line for line in log.splitlines() if any(k in line for k in required) and 'echo ' not in line]
     for key in required: assert any(key in line for line in evidence), 'Missing '+key
     name='ai-passport-platform-v'+info['version']+'-'+info['source_commit'][:7]
