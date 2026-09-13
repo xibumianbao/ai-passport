@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -45,6 +46,22 @@ def initializer(report):
     a=report['apps']
     return '#define PP_METRICS_INIT {1, '+str(report['image_bytes'])+', {'+','.join(str(x['flash_bytes']) for x in a)+'}, {'+','.join(str(x['static_ram_bytes']) for x in a)+'}}\n'
 
+def check_chat_budget(report, version, budget):
+    if version != budget['version']: return
+    growth=report['image_bytes']-budget['baseline_image_bytes']
+    assert growth<=budget['max_image_growth_bytes'], 'Chat motion exceeds its 8 KiB image-growth budget'
+    linked={a['component']:a['static_ram_bytes'] for a in report['shared_components']}
+    linked.update({'pp_app_'+a['id']:a['static_ram_bytes'] for a in report['apps']})
+    baseline=budget['baseline_static_ram_bytes']
+    assert all(c in linked for c in baseline), 'Missing budgeted chat component'
+    ram_growth=sum(linked[c]-n for c,n in baseline.items())
+    assert ram_growth<=budget['max_static_ram_growth_bytes'], 'Chat motion exceeds its static RAM-growth budget'
+    report['chat_motion_budget']={'baseline_source_commit':budget['baseline_source_commit'],
+        'image_growth_bytes':growth,'static_ram_growth_bytes':ram_growth,
+        'max_image_growth_bytes':budget['max_image_growth_bytes'],
+        'max_static_ram_growth_bytes':budget['max_static_ram_growth_bytes'],
+        'boundary':budget['boundary']}
+
 def main():
     parser=argparse.ArgumentParser(); parser.add_argument('build',type=Path); parser.add_argument('--verify',action='store_true'); args=parser.parse_args()
     root=Path(__file__).resolve().parent.parent; b=args.build
@@ -56,6 +73,8 @@ def main():
     h=b/'passport_generated/passport_metrics.h'; expected=initializer(report)
     if args.verify:
         assert h.read_text()==expected, 'Capacity changed after second link; refuse stale build accounting'
+        version=re.search(r'set\(PROJECT_VER "([^"]+)"\)',(root/'CMakeLists.txt').read_text()).group(1)
+        check_chat_budget(report,version,json.loads((root/'apps/chat-motion-budget.json').read_text()))
         if any(a['id']=='pet' for a in report['apps']):
             pet=next(a for a in report['apps'] if a['id']=='pet')
             avatar=next(a for a in report['shared_components'] if a['component']=='pp_avatar')

@@ -12,7 +12,11 @@ typedef struct {
     pp_voice_state_t state;
     char detail[80], activation[16];
     uint32_t tx_frames, rx_frames, free_heap, stack_free;
-    uint16_t level;
+    uint16_t level; /* Microphone mean absolute PCM amplitude, 0..32768. */
+    /* Independent playback PCM amplitude, after a successful BSP write.
+     * At age >=250 ms level is zero; absent/cleared age is UINT16_MAX.
+     * This is submitted audio activity, not measured speaker loudness. */
+    uint16_t playback_level, playback_age_ms;
 } pp_voice_snapshot_t;
 /* Control task only. Focus owns a cancellable session, independent of LVGL.
  * Close revokes permission immediately. The worker releases audio/transport

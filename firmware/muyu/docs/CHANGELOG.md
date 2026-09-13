@@ -4,6 +4,13 @@
 
 # Changelog
 
+## 0.6.1 - Lightweight conversation feedback
+
+- Give Yaya Chat distinct listening, thinking, speaking and idle motions. Keep the existing fixed words and use pixel dots/bars instead of a large transcript font.
+- Drive speaking mouth shapes and bars from successfully submitted playback PCM, independently of microphone level; clear stale or cancelled output. Keep the audio buffers, protocol and 40 KiB worker stack.
+- Use a compact speech card with no added image, font, canvas or background task. Reset motion after menu/screen-off; preserve activation and error readability and Pet rendering/saves.
+- Gate image growth at 8 KiB and linked chat/avatar/voice static RAM growth at 256 B against 0.6.0. Device timing, peak RAM and extended voice stability require separate acceptance.
+
 ## 0.6.0 - Independent Yaya care and chat
 
 - Keep Yaya Pet and Yaya Chat as independent menu entries. Share only pixel artwork; chat does not read or change pet saves, and the existing Qixi cloud configuration is unchanged.

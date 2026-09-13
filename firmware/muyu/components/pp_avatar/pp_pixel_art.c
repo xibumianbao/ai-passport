@@ -77,86 +77,101 @@ static void oval(const pp_pixel_sink_t *s,int x,int y,int w,int h,uint32_t c)
 {
     for(int j=0;j<h;j+=2) {
         int edge=(j<4 || j>=h-4)?8:(j<8 || j>=h-8)?4:0;
-        r(s,x+edge,y+j,w-2*edge,2,c);
+        r(s,x+edge,y+j,w-2*edge,h-j<2?h-j:2,c);
     }
 }
 void pp_avatar_draw(const pp_pixel_sink_t *s,int x,int y,const pp_avatar_frame_t *f)
 {
     unsigned t=f->frame;
-    bool sleep=f->pose==AVATAR_SLEEP && f->voice==AVATAR_IDLE;
-    bool blink=(t%23==19) || sleep;
+    bool chat=f->chat.enabled;
+    pp_avatar_pose_t pose=chat?AVATAR_LOOK:f->pose;
+    bool evolved=!chat && f->evolved;
+    int breath=chat?(f->chat.breathe>2?2:f->chat.breathe):0;
+    int tilt=chat?(f->chat.tilt<-1?-1:f->chat.tilt>1?1:f->chat.tilt):0;
+    unsigned mouth=chat?(f->chat.mouth>3?3:f->chat.mouth):0;
+    /* A malformed/stale presentation must never open a non-speaking mouth. */
+    if(f->voice!=AVATAR_SPEAKING) mouth=0;
+    bool sleep=pose==AVATAR_SLEEP && f->voice==AVATAR_IDLE;
+    bool blink=chat?f->chat.blink:(t%23==19) || sleep;
     bool speak=f->voice==AVATAR_SPEAKING,listen=f->voice==AVATAR_LISTENING;
-    int bob=sleep?0:(int)((t/3)%2)*2;
-    int sway=(f->pose==AVATAR_WALK)?((int)(t%12)-6):0;
+    int bob=chat||sleep?0:(int)((t/3)%2)*2;
+    int sway=(pose==AVATAR_WALK)?((int)(t%12)-6):0;
     x+=sway; y-=bob;
-    if (f->pose==AVATAR_GROW || f->pose==AVATAR_PLAY) y-=((t%8<4)?4:0);
+    if (pose==AVATAR_GROW || pose==AVATAR_PLAY) y-=((t%8<4)?4:0);
+    int head_y=y-breath;
     /* Feet and rear shadow. */
     r(s,x+12,y+72+bob,51,5,0x8f8064);
     r(s,x+15,y+64,15,8,INK); r(s,x+45,y+64,15,8,INK);
     r(s,x+17,y+64,12,5,TEAL); r(s,x+46,y+64,12,5,GREEN);
     /* Small leaf ears, recognizable in both forms. */
     int ear=listen?4:0;
-    r(s,x+17,y+7-ear,6,22,INK); r(s,x+13,y+9-ear,12,10,INK);
-    r(s,x+15,y+9-ear,6,8,GREEN); r(s,x+19,y+15-ear,4,10,TEAL);
-    r(s,x+49,y+3-ear,8,26,INK); r(s,x+53,y+5-ear,10,12,INK);
-    r(s,x+51,y+7-ear,10,9,GREEN); r(s,x+53,y+7-ear,6,3,LIGHT);
-    r(s,x+51,y+17-ear,4,10,TEAL);
-    if (f->evolved) {
+    if(chat) ear+=f->chat.ear>2?2:f->chat.ear;
+    int left_ear=ear+tilt,right_ear=ear-tilt;
+    r(s,x+17,head_y+7-left_ear,6,22,INK); r(s,x+13,head_y+9-left_ear,12,10,INK);
+    r(s,x+15,head_y+9-left_ear,6,8,GREEN); r(s,x+19,head_y+15-left_ear,4,10,TEAL);
+    r(s,x+49,head_y+3-right_ear,8,26,INK); r(s,x+53,head_y+5-right_ear,10,12,INK);
+    r(s,x+51,head_y+7-right_ear,10,9,GREEN); r(s,x+53,head_y+7-right_ear,6,3,LIGHT);
+    r(s,x+51,head_y+17-right_ear,4,10,TEAL);
+    if (evolved) {
         r(s,x+59,y+1-ear,6,10,INK); r(s,x+57,y+3-ear,6,6,GREEN);
         r(s,x+9,y+5-ear,6,10,INK); r(s,x+11,y+7-ear,8,5,LIGHT);
         star(s,x+33,y+6,CREAM);
     }
     /* Body: outline, shaded sides, highlight and cream belly. */
-    oval(s,x+9,y+23,60,46,INK); oval(s,x+11,y+23,56,42,DEEP);
-    oval(s,x+11,y+23,52,38,GREEN); oval(s,x+17,y+23,42,16,LIGHT);
-    r(s,x+19,y+25,18,2,0xd7e7b3); r(s,x+17,y+29,6,2,0xd7e7b3);
+    /* Chat stretches only the upper body by 0..2 px. Feet and floor shadow
+     * retain their anchors; the pet's original bob is unchanged when disabled. */
+    oval(s,x+9,head_y+23,60,46+breath,INK); oval(s,x+11,head_y+23,56,42+breath,DEEP);
+    oval(s,x+11,head_y+23,52,38+breath,GREEN); oval(s,x+17,head_y+23,42,16,LIGHT);
+    r(s,x+19,head_y+25,18,2,0xd7e7b3); r(s,x+17,head_y+29,6,2,0xd7e7b3);
     oval(s,x+23,y+47,34,18,0xcbd7a3); r(s,x+31,y+51,14,10,CREAM);
     r(s,x+15,y+49,4,8,TEAL); r(s,x+59,y+43,4,14,TEAL);
     /* Eyes shift slightly while looking / thinking, but retain face anchors. */
-    int look=f->voice==AVATAR_THINKING?-2:((t/18)%3==1?2:0);
-    if (blink) { r(s,x+23,y+39,8,2,INK); r(s,x+47,y+39,8,2,INK); }
+    int look=chat?(f->chat.gaze<-2?-2:f->chat.gaze>2?2:f->chat.gaze):
+        f->voice==AVATAR_THINKING?-2:((t/18)%3==1?2:0);
+    if (blink) { r(s,x+23,head_y+39+tilt,8,2,INK); r(s,x+47,head_y+39-tilt,8,2,INK); }
     else {
-        r(s,x+24+look,y+33,6,10,INK); r(s,x+48+look,y+33,6,10,INK);
-        r(s,x+24+look,y+33,2,3,0xf9f0d2); r(s,x+48+look,y+33,2,3,0xf9f0d2);
-        r(s,x+27+look,y+40,2,2,DEEP); r(s,x+51+look,y+40,2,2,DEEP);
+        r(s,x+24+look,head_y+33+tilt,6,10,INK); r(s,x+48+look,head_y+33-tilt,6,10,INK);
+        r(s,x+24+look,head_y+33+tilt,2,3,0xf9f0d2); r(s,x+48+look,head_y+33-tilt,2,3,0xf9f0d2);
+        r(s,x+27+look,head_y+40+tilt,2,2,DEEP); r(s,x+51+look,head_y+40-tilt,2,2,DEEP);
     }
-    r(s,x+19,y+43,8,3,0xd9a28c); r(s,x+51,y+43,8,3,0xd9a28c);
-    if (speak || (f->pose==AVATAR_EAT && t%2)) {
-        r(s,x+35,y+44,8,((t%3)+1)*2,INK); r(s,x+37,y+48,4,2,RUST);
-    } else { r(s,x+35,y+45,3,2,INK); r(s,x+41,y+45,3,2,INK); r(s,x+38,y+47,3,2,INK); }
+    r(s,x+19,head_y+43+tilt,8,3,0xd9a28c); r(s,x+51,head_y+43-tilt,8,3,0xd9a28c);
+    if (chat?mouth!=0:speak || (pose==AVATAR_EAT && t%2)) {
+        r(s,x+35,head_y+44,8,(chat?mouth:(t%3)+1)*2,INK);
+        if(!chat || mouth>=2) r(s,x+37,head_y+48,4,2,RUST);
+    } else { r(s,x+35,head_y+45,3,2,INK); r(s,x+41,head_y+45,3,2,INK); r(s,x+38,head_y+47,3,2,INK); }
     /* Arms. */
     r(s,x+5,y+44,10,10,INK); r(s,x+7,y+44,8,7,GREEN);
     r(s,x+63,y+44,10,10,INK); r(s,x+63,y+44,8,7,TEAL);
-    if (f->evolved) {
+    if (evolved) {
         r(s,x+17,y+51,45,6,RUST); r(s,x+19,y+51,41,2,GOLD);
         r(s,x+53,y+54,8,12,RUST); r(s,x+53,y+64,10,2,GOLD);
     }
     if (sleep) {
         r(s,x+8,y+53,63,15,DEEP); r(s,x+10,y+53,59,11,0x87aaa0);
         r(s,x+12,y+53,55,3,0xb5cab0); star(s,x+63,y+13-(int)(t%4),CREAM);
-    } else if (f->pose==AVATAR_READ) {
+    } else if (pose==AVATAR_READ) {
         r(s,x+17,y+54,46,17,INK); r(s,x+19,y+54,19,13,CREAM);
         r(s,x+40,y+54,21,13,0xe5cda0); r(s,x+38,y+54,2,15,RUST);
         for(int j=0;j<3;++j) { r(s,x+23,y+57+j*3,11,1,0xb7a37b); r(s,x+44,y+57+j*3,11,1,0xb7a37b); }
         if (t%8<3) r(s,x+40,y+54,3,13,0xf7e8be);
-    } else if (f->pose==AVATAR_HELP) {
+    } else if (pose==AVATAR_HELP) {
         r(s,x+28,y+61,26,13,RUST); r(s,x+26,y+59,30,4,INK); r(s,x+29,y+59,24,2,GOLD);
         r(s,x+38,y+49,3,10,DEEP); r(s,x+32,y+46,9,6,GREEN); r(s,x+41,y+44,9,6,LIGHT);
-    } else if (f->pose==AVATAR_EAT) {
+    } else if (pose==AVATAR_EAT) {
         r(s,x+23,y+59,34,6,INK); r(s,x+25,y+59,30,3,CREAM);
         oval(s,x+27,y+49,26,12,GOLD); r(s,x+35,y+49,8,2,CREAM);
         r(s,x+29,y+53,4,2,RUST); r(s,x+45,y+54,3,2,RUST);
-    } else if (f->pose==AVATAR_PLAY) {
+    } else if (pose==AVATAR_PLAY) {
         int by=y+58-((int)(t%6)-3)*2;
         oval(s,x-10,by,22,18,INK); oval(s,x-8,by+2,18,14,GOLD);
         r(s,x-2,by+2,4,14,CREAM); r(s,x-8,by+7,18,3,0xc18e67);
     }
-    if (f->pose==AVATAR_GROW) {
+    if (pose==AVATAR_GROW) {
         star(s,x-1,y+25-(int)(t%4)*2,GOLD); star(s,x+73,y+38-(int)(t%4)*2,CREAM);
         star(s,x+34,y-4,GOLD);
     }
     if (f->voice==AVATAR_THINKING) {
-        for(unsigned i=0;i<3;++i) r(s,x+28+(int)i*8,y-1,4,4,i==t%3?CREAM:TEAL);
+        for(unsigned i=0;i<3;++i) r(s,x+28+(int)i*8,head_y-1,4,4,i==(chat?f->chat.dots%3:t%3)?CREAM:TEAL);
     } else if (listen) {
         r(s,x-3,y+22,2,12,CREAM); r(s,x-7,y+25,2,6,GOLD);
         r(s,x+78,y+22,2,12,CREAM); r(s,x+82,y+25,2,6,GOLD);

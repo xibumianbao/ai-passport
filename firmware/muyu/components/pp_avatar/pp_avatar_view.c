@@ -16,6 +16,18 @@ static lv_obj_t *owner;
 static pp_avatar_frame_t rendered_frame;
 static bool rendered;
 
+static bool same_frame(const pp_avatar_frame_t *a,const pp_avatar_frame_t *b)
+{
+    if(a->chat.enabled!=b->chat.enabled || a->voice!=b->voice) return false;
+    if(!a->chat.enabled)
+        return a->frame==b->frame && a->pose==b->pose && a->evolved==b->evolved;
+    /* Chat draws one basic form from explicit visual parameters. No padding
+     * bytes, absolute clock, inactive pet pose or pet evolution enter its key. */
+    return a->chat.blink==b->chat.blink && a->chat.breathe==b->chat.breathe &&
+        a->chat.ear==b->chat.ear && a->chat.mouth==b->chat.mouth &&
+        a->chat.dots==b->chat.dots && a->chat.gaze==b->chat.gaze && a->chat.tilt==b->chat.tilt;
+}
+
 static void deleted(lv_event_t *event)
 {
     if(lv_event_get_target_obj(event) != owner) return;
@@ -49,8 +61,7 @@ lv_obj_t *pp_avatar_view_create(lv_obj_t *parent, int x, int y)
 void pp_avatar_view_render(lv_obj_t *view, const pp_avatar_frame_t *frame)
 {
     if(!view || view != owner || !frame) return;
-    if(rendered && frame->frame == rendered_frame.frame && frame->pose == rendered_frame.pose &&
-       frame->voice == rendered_frame.voice && frame->evolved == rendered_frame.evolved) return;
+    if(rendered && same_frame(frame,&rendered_frame)) return;
 
     lv_image_cache_drop(&sprite);
     pp_pixel_buffer_t pixels;

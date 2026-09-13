@@ -4,6 +4,31 @@ English | [简体中文](xiaozhi-standalone.zh_CN.md)
 
 Platform 0.6.0 names the independent conversation entry **Yaya Chat**. Yaya Pet remains an offline game without a model/save connection to chat. Both reuse pixel artwork; the existing Qixi cloud personality, voice and memory configuration is unchanged. The former pet-data/voice integration plan is cancelled.
 
+## 0.6.1: lightweight motion and output feedback
+
+Keep fixed words in the existing font. A compact speech card uses drawn dots
+while thinking and three small bars while listening or speaking. No transcript,
+large font, new bitmap, canvas or animation task is added. The chat-only motion
+controller varies blinking, gaze, leaf ears, breathing and speaking mouth shapes;
+the legacy Pet renderer and saves stay independent.
+
+Speaking amplitude comes from already-decoded PCM only after successful speaker
+submission, not the microphone. Silent, cancelled or stale output closes the
+mouth. The voice layer computes age using its own clock; data older than 250 ms
+is zero; visible feedback follows on a normal render, approximately every 200 ms.
+Scheduling or a busy LVGL lock can delay that render. This is
+approximate sound activity, not phoneme lip sync or a calibrated volume meter.
+Hidden pages stop drawing and reset animation on return. Audio lifecycle,
+protocol, buffers and the 40 KiB worker stack remain unchanged.
+
+The second-link capacity gate enforces growth of at most 8 KiB in the app image
+and 256 B across linked chat/avatar/voice static RAM against the pinned 0.6.0
+baseline in `apps/chat-motion-budget.json`. These measurements exclude dynamic
+heap, stack and DMA; the proposed total peak-RAM growth target still needs device
+measurement. New 0.6.1 device tests are **NOT RUN**. Check quiet/loud replies,
+silence, cancellation, menu/dark-running, warm re-entry and long conversations;
+UI improvements do not establish a fix for the earlier Opus allocation failure.
+
 ## 0.6.0: shared appearance, independent application
 
 The view uses the existing room/font and one shared 96x88 I4 sprite. Listening/thinking/speaking follow existing voice snapshots; activation and errors stay visible. No pet model/store, animation worker, large image or second sprite buffer is added. Content is 240x290 without a permanent footer.

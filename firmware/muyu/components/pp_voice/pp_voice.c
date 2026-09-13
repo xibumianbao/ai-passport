@@ -6,6 +6,7 @@
 #include "pp_voice_codec.h"
 #include "pp_voice_selftest.h"
 #include "pp_voice_turn.h"
+#include "pp_voice_meter.h"
 #include "passport_audio.h"
 #include "passport_radio.h"
 #include "passport_core.h"
@@ -48,6 +49,7 @@
 static const char *TAG="pp_voice";
 static portMUX_TYPE snapshot_lock=portMUX_INITIALIZER_UNLOCKED;
 static pp_voice_snapshot_t snapshot;
+static pp_voice_meter_t playback_meter;
 static atomic_uint wanted, pressed;
 static atomic_bool busy;
 static unsigned next_ticket, started_ticket;
@@ -71,11 +73,24 @@ static bool cancel_pending(const voice_t *v)
 static bool permitted(const voice_t *v) { return live(v) && !cancel_pending(v); }
 static bool capturing(const voice_t *v) { return permitted(v) && pp_voice_turn_captures(&v->turn); }
 static int64_t now_ms(void) { return esp_timer_get_time()/1000; }
+static void clear_playback_locked(void)
+{
+    pp_voice_meter_clear(&playback_meter);
+    snapshot.playback_level=0; snapshot.playback_age_ms=UINT16_MAX;
+}
+static void clear_playback(voice_t *v)
+{
+    taskENTER_CRITICAL(&snapshot_lock);
+    if(live(v)) clear_playback_locked();
+    taskEXIT_CRITICAL(&snapshot_lock);
+}
 static void publish(voice_t *v,pp_voice_state_t state,const char *detail)
 {
     taskENTER_CRITICAL(&snapshot_lock);
     if(live(v)) {
         snapshot.state=state;
+        if(state!=PP_VOICE_LISTENING) snapshot.level=0;
+        if(state!=PP_VOICE_SPEAKING) clear_playback_locked();
         snprintf(snapshot.detail,sizeof(snapshot.detail),"%s",detail);
         if(state!=PP_VOICE_ACTIVATION) snapshot.activation[0]=0;
         snapshot.tx_frames=v->tx_count; snapshot.rx_frames=v->rx_count;
@@ -137,7 +152,12 @@ static bool offline_selftest(voice_t *v)
 }
 void pp_voice_snapshot(pp_voice_snapshot_t *out)
 {
-    taskENTER_CRITICAL(&snapshot_lock); *out=snapshot; taskEXIT_CRITICAL(&snapshot_lock);
+    taskENTER_CRITICAL(&snapshot_lock);
+    *out=snapshot;
+    out->playback_level=0; out->playback_age_ms=UINT16_MAX;
+    if(snapshot.state==PP_VOICE_SPEAKING)
+        pp_voice_meter_read(&playback_meter,(uint64_t)now_ms(),&out->playback_level,&out->playback_age_ms);
+    taskEXIT_CRITICAL(&snapshot_lock);
 }
 void pp_voice_open(void)
 {
@@ -145,6 +165,7 @@ void pp_voice_open(void)
     atomic_store(&pressed,0); atomic_store(&wanted,next_ticket);
     taskENTER_CRITICAL(&snapshot_lock);
     memset(&snapshot,0,sizeof(snapshot)); snapshot.state=PP_VOICE_STARTING;
+    clear_playback_locked();
     snprintf(snapshot.detail,sizeof(snapshot.detail),"%s",atomic_load(&busy)?"Closing previous session":"Starting voice service");
     taskEXIT_CRITICAL(&snapshot_lock);
     pp_voice_tick();
@@ -152,7 +173,9 @@ void pp_voice_open(void)
 void pp_voice_close(void *unused)
 {
     (void)unused; atomic_store(&wanted,0); atomic_store(&pressed,0);
-    taskENTER_CRITICAL(&snapshot_lock); snapshot.state=PP_VOICE_OFF; taskEXIT_CRITICAL(&snapshot_lock);
+    taskENTER_CRITICAL(&snapshot_lock);
+    snapshot.state=PP_VOICE_OFF; clear_playback_locked();
+    taskEXIT_CRITICAL(&snapshot_lock);
 }
 void pp_voice_press(void)
 {
@@ -163,8 +186,12 @@ void pp_voice_press(void)
         pp_voice_open(); atomic_store(&pressed,atomic_load(&wanted));
     } else if(state.state==PP_VOICE_ERROR || state.state==PP_VOICE_WIFI) pp_voice_open();
     else if(state.state==PP_VOICE_READY || state.state==PP_VOICE_LISTENING ||
-            state.state==PP_VOICE_THINKING || state.state==PP_VOICE_SPEAKING)
+            state.state==PP_VOICE_THINKING || state.state==PP_VOICE_SPEAKING) {
         atomic_store(&pressed,atomic_load(&wanted));
+        /* Clear immediately, even if the worker is inside a synchronous SDK
+         * call. Its post-write permission check cannot republish this sample. */
+        taskENTER_CRITICAL(&snapshot_lock); clear_playback_locked(); taskEXIT_CRITICAL(&snapshot_lock);
+    }
 }
 static const char *str(const cJSON *root,const char *key)
 {
@@ -468,6 +495,7 @@ static bool json_message(voice_t *v)
                 pp_turn_phase_t before=v->turn.phase;
                 pp_voice_turn_event(&v->turn,!strcmp(state,"start")?PP_TURN_TTS_START:PP_TURN_TTS_STOP,
                     (uint64_t)now_ms());
+                if(v->turn.phase==PP_TURN_RESUME_PENDING) clear_playback(v);
                 ESP_LOGI(TAG,"TTS control: start=%u phase=%u->%u",(unsigned)!strcmp(state,"start"),
                     (unsigned)before,(unsigned)v->turn.phase);
             }
@@ -483,6 +511,17 @@ static bool json_message(voice_t *v)
     /* STT, emotion and sentence text are transient cloud events. No transcript
      * is retained and no remote system/reboot/update commands are executed. */
     cJSON_Delete(root); return ok;
+}
+static void playback_written(voice_t *v,const int16_t *pcm,size_t bytes,bool written)
+{
+    if(!permitted(v) || !pp_voice_turn_plays(&v->turn)) return;
+    /* Scan the existing PCM outside the critical section. Only these few
+     * scalar fields cross tasks; audio and its lifetime remain worker-owned. */
+    pp_voice_meter_t measured={0};
+    if(!pp_voice_meter_submit(&measured,pcm,bytes,written,(uint64_t)now_ms())) return;
+    taskENTER_CRITICAL(&snapshot_lock);
+    if(permitted(v) && pp_voice_turn_plays(&v->turn)) playback_meter=measured;
+    taskEXIT_CRITICAL(&snapshot_lock);
 }
 static bool play(voice_t *v)
 {
@@ -517,7 +556,9 @@ static bool play(voice_t *v)
     began=esp_timer_get_time();
     for(size_t offset=0;offset<out.decoded_size && permitted(v);offset+=320) {
         size_t n=out.decoded_size-offset; if(n>320) n=320;
-        if(bsp_audio_write((uint8_t *)v->pcm+offset,n)!=ESP_OK) return false;
+        esp_err_t written=bsp_audio_write((uint8_t *)v->pcm+offset,n);
+        playback_written(v,v->pcm+offset/2,n,written==ESP_OK);
+        if(written!=ESP_OK) return false;
     }
     if(!v->write_measured) {
         ESP_LOGI(TAG,"Playback write bytes=%u us=%lld",(unsigned)out.decoded_size,(long long)(esp_timer_get_time()-began));
@@ -695,6 +736,7 @@ static void worker(void *arg)
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 done:
+    clear_playback(v);
     pp_voice_turn_event(&v->turn,PP_TURN_REVOKE,(uint64_t)now_ms());
     pp_voice_codec_close(&v->codec);
     if(v->audio) { silence(v); pp_audio_release(); }
@@ -715,6 +757,7 @@ void pp_voice_tick(void)
     voice_t *v=calloc(1,sizeof(*v));
     if(!v) {
         taskENTER_CRITICAL(&snapshot_lock); snapshot.state=PP_VOICE_ERROR;
+        clear_playback_locked();
         snprintf(snapshot.detail,sizeof(snapshot.detail),"Not enough memory for voice"); taskEXIT_CRITICAL(&snapshot_lock); return;
     }
     v->ticket=ticket; atomic_store(&busy,true);

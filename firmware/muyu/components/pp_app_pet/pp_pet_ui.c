@@ -107,7 +107,7 @@ void pp_pet_ui_render(const pp_pet_t *p,pp_avatar_state_t voice)
     /* Visual clock remains independent when future voice pauses the economy. */
     pp_avatar_pose_t activity=pose(p); unsigned frame=lv_tick_get()/200;
     if(voice!=AVATAR_IDLE) activity=AVATAR_LOOK;
-    pp_avatar_frame_t f={activity,voice,frame,level>=3};
+    pp_avatar_frame_t f={.pose=activity,.voice=voice,.frame=frame,.evolved=level>=3};
     pp_avatar_view_render(s_pet,&f);
     text(s_message,message(p,activity,voice));
     const char *labels[]={p->save.fullness>60?"不饿啦":p->save.coins>=5?"喂食 5★":"免费口粮","陪玩","休息"};

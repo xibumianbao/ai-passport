@@ -95,7 +95,7 @@ static void test_avatar(void)
     uint8_t data[64+96*88/2+32]; memset(data,0xaa,sizeof(data));
     pp_pixel_buffer_t b; pp_pixel_buffer_init(&b,data+16,96,88); pp_pixel_sink_t sink={pp_pixel_buffer_rect,&b};
     for(unsigned p=0;p<=AVATAR_GROW;++p) for(unsigned f=0;f<100;++f) {
-        pp_avatar_frame_t frame={(pp_avatar_pose_t)p,(pp_avatar_state_t)(f%6),f,f%2};
+        pp_avatar_frame_t frame={.pose=(pp_avatar_pose_t)p,.voice=(pp_avatar_state_t)(f%6),.frame=f,.evolved=f%2};
         pp_avatar_draw(&sink,(int)(f%50)-25,(int)(f%50)-25,&frame);
     }
     for(unsigned i=0;i<16;++i) assert(data[i]==0xaa && data[sizeof(data)-1-i]==0xaa);

@@ -52,6 +52,7 @@ target_include_directories(pet_preview PRIVATE "${FIRMWARE_ROOT}/main" "${PET_RO
 target_compile_options(pet_preview PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(pet_preview PRIVATE lvgl::lvgl m)
 add_executable(xiaozhi_preview xiaozhi_preview.c
+    "${AVATAR_ROOT}/pp_chat_motion.c"
     "${AVATAR_ROOT}/pp_avatar_view.c"
     "${FIRMWARE_ROOT}/components/pp_app_xiaozhi/pp_xiaozhi_app.c"
     "${FIRMWARE_ROOT}/components/pp_app_xiaozhi/pp_xiaozhi_ui.c"
@@ -74,3 +75,14 @@ target_compile_options(avatar_view_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
 target_link_libraries(avatar_view_test PRIVATE lvgl::lvgl m)
 enable_testing()
 add_test(NAME avatar_view_test COMMAND avatar_view_test)
+add_executable(chat_motion_test "${FIRMWARE_ROOT}/tests/test_chat_motion.c"
+    "${AVATAR_ROOT}/pp_chat_motion.c" "${AVATAR_ROOT}/pp_pixel_art.c"
+    "${AVATAR_ROOT}/pp_pixel_buffer.c")
+target_include_directories(chat_motion_test PRIVATE "${AVATAR_ROOT}/include")
+target_compile_options(chat_motion_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+add_test(NAME chat_motion_test COMMAND chat_motion_test)
+add_executable(voice_meter_test "${FIRMWARE_ROOT}/tests/test_voice_meter.c"
+    "${FIRMWARE_ROOT}/components/pp_voice/pp_voice_meter.c")
+target_include_directories(voice_meter_test PRIVATE "${FIRMWARE_ROOT}/components/pp_voice/include")
+target_compile_options(voice_meter_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+add_test(NAME voice_meter_test COMMAND voice_meter_test)

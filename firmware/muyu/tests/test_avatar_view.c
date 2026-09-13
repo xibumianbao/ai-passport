@@ -11,6 +11,8 @@
 
 static uint16_t draw_buffer[240*20];
 static uint8_t reference_pixels[64+96*88/2];
+static unsigned draw_events;
+static void count_draw(lv_event_t *event) { (void)event; ++draw_events; }
 static void flush(lv_display_t *display,const lv_area_t *area,uint8_t *data)
 { (void)area; (void)data; lv_display_flush_ready(display); }
 static void check_pixels(lv_obj_t *view,const pp_avatar_frame_t *frame)
@@ -51,10 +53,36 @@ int main(void)
         for(unsigned voice=AVATAR_IDLE;voice<=AVATAR_OFFLINE;++voice)
             for(unsigned evolved=0;evolved<2;++evolved)
                 for(unsigned i=0;i<sizeof(phases)/sizeof(phases[0]);++i) {
-                    pp_avatar_frame_t frame={(pp_avatar_pose_t)pose,(pp_avatar_state_t)voice,phases[i],evolved!=0};
+                    pp_avatar_frame_t frame={.pose=(pp_avatar_pose_t)pose,.voice=(pp_avatar_state_t)voice,.frame=phases[i],.evolved=evolved!=0};
                     check_pixels(view,&frame); ++comparisons;
                 }
-    pp_avatar_frame_t frame={AVATAR_READ,AVATAR_IDLE,1,false};
+    /* Only chat parameters change here: stale cache keys must not retain an
+     * old mouth, blink, leaf, breath, glance or thought marker. */
+    lv_obj_add_event_cb(view,count_draw,LV_EVENT_DRAW_MAIN,NULL);
+    for(unsigned state=AVATAR_IDLE;state<=AVATAR_OFFLINE;++state)
+        for(unsigned field=0;field<8;++field) {
+            pp_avatar_frame_t chat={.pose=AVATAR_LOOK,.voice=(pp_avatar_state_t)state,
+                .chat={.enabled=true}};
+            check_pixels(view,&chat);
+            switch(field) {
+            case 0: chat.chat.blink=true; break;
+            case 1: chat.chat.breathe=2; break;
+            case 2: chat.chat.ear=1; break;
+            case 3: chat.chat.mouth=3; break;
+            case 4: chat.chat.dots=2; break;
+            case 5: chat.chat.gaze=2; break;
+            case 6: chat.chat.tilt=1; break;
+            default: chat.chat.enabled=false; break;
+            }
+            check_pixels(view,&chat); ++comparisons;
+        }
+    pp_avatar_frame_t clockless={.pose=AVATAR_LOOK,.voice=AVATAR_SPEAKING,
+        .chat={.enabled=true,.mouth=2}};
+    check_pixels(view,&clockless); lv_refr_now(display);
+    unsigned stable_draws=draw_events;
+    clockless.frame=12345; pp_avatar_view_render(view,&clockless); lv_refr_now(display);
+    assert(draw_events==stable_draws);
+    pp_avatar_frame_t frame={.pose=AVATAR_READ,.voice=AVATAR_IDLE,.frame=1,.evolved=false};
     check_pixels(view,&frame);
     pp_avatar_view_render(NULL,&frame); pp_avatar_view_render(other,&frame);
     pp_avatar_view_render(view,NULL);

@@ -64,6 +64,15 @@ run_static_checks() {
         tests/test_voice_selftest.c components/pp_voice/pp_voice_codec.c components/pp_voice/pp_voice_selftest.c \
         -o "${test_dir}/test_voice_selftest"
     "${test_dir}/test_voice_selftest"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_avatar/include tests/test_chat_motion.c \
+        components/pp_avatar/pp_chat_motion.c components/pp_avatar/pp_pixel_art.c \
+        components/pp_avatar/pp_pixel_buffer.c -o "${test_dir}/test_chat_motion"
+    "${test_dir}/test_chat_motion"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_voice/include tests/test_voice_meter.c components/pp_voice/pp_voice_meter.c \
+        -o "${test_dir}/test_voice_meter"
+    "${test_dir}/test_voice_meter"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Icomponents/pp_avatar/include \
         tools/preview/pet_art_export.c components/pp_avatar/pp_pixel_art.c components/pp_avatar/pp_pixel_buffer.c \
         -o "${test_dir}/pet_art_export"
@@ -90,6 +99,8 @@ run_preview_checks() (
     mkdir -p "${repo_root}/build"
     cd "${repo_root}/build"
     "${preview_build_dir}/avatar_view_test"
+    "${preview_build_dir}/chat_motion_test"
+    "${preview_build_dir}/voice_meter_test"
     "${preview_build_dir}/passport_preview"
     "${preview_build_dir}/passport_catalog_test"
     "${preview_build_dir}/pet_preview"

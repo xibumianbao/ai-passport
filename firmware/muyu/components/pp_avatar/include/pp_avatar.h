@@ -13,7 +13,17 @@ void pp_avatar_end(pp_avatar_t *avatar);
 
 typedef enum { AVATAR_LOOK, AVATAR_READ, AVATAR_HELP, AVATAR_WALK, AVATAR_EAT,
                AVATAR_PLAY, AVATAR_SLEEP, AVATAR_GROW } pp_avatar_pose_t;
-typedef struct { pp_avatar_pose_t pose; pp_avatar_state_t voice; unsigned frame; bool evolved; } pp_avatar_frame_t;
+/* Explicit chat-only visual parameters. Zero initialization preserves the
+ * original pet renderer exactly. Values are pixel offsets, never transforms. */
+typedef struct {
+    bool enabled, blink;
+    uint8_t breathe, ear, mouth, dots;
+    int8_t gaze, tilt;
+} pp_avatar_chat_frame_t;
+typedef struct {
+    pp_avatar_pose_t pose; pp_avatar_state_t voice; unsigned frame; bool evolved;
+    pp_avatar_chat_frame_t chat;
+} pp_avatar_frame_t;
 typedef void (*pp_pixel_rect_fn)(void *ctx, int x, int y, int w, int h, uint32_t rgb);
 typedef struct { pp_pixel_rect_fn rect; void *ctx; } pp_pixel_sink_t;
 /* Stateless, shared, no heap/framebuffer/image decoder; native pixel coordinates. */

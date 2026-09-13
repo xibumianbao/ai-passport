@@ -88,6 +88,14 @@ static void check_content(void)
     assert(avatars(root)==1); /* Detect a lost shared owner after app deletion. */
     assert(pp_avatar_view_create(root,0,0)==NULL); /* Only one foreground surface. */
 }
+static uint32_t region_hash(int x,int y,int w,int h)
+{
+    lv_refr_now(NULL);
+    uint32_t hash=2166136261u;
+    for(int row=y;row<y+h;++row) for(int col=x;col<x+w;++col)
+        hash=(hash^pixels[row*240+col])*16777619u;
+    return hash;
+}
 int main(void)
 {
     /* Seed a real, non-default encoded save. Dialogue UI and controls must not
@@ -121,9 +129,44 @@ int main(void)
         voice.state=cases[i].state; strcpy(voice.detail,cases[i].detail);
         view.wifi=voice.state==PP_VOICE_WIFI?PP_LINK_OFF:PP_LINK_ON;
         strcpy(voice.activation,"123456"); voice.level=1200;
-        pp_ui_render(&view); tick(200); check_content(); snapshot(cases[i].file);
+        voice.playback_level=3000; voice.playback_age_ms=voice.state==PP_VOICE_SPEAKING?0:UINT16_MAX;
+        for(unsigned step=0;step<8;++step) { pp_ui_render(&view); tick(200); }
+        check_content(); snapshot(cases[i].file);
         assert(!memcmp(original,durable,sizeof(original)));
         assert(!store_opens && !store_writes && !store_closes);
+    }
+    /* Actual LVGL pixels must respond to playback, not a leftover microphone
+     * level or a clock-driven mouth. Freeze time between loud/stale samples. */
+    voice.state=PP_VOICE_SPEAKING; voice.level=32000;
+    voice.playback_level=3200; voice.playback_age_ms=0;
+    pp_ui_render(&view); uint32_t loud=region_hash(72,224,96,88);
+    uint32_t loud_card=region_hash(24,58,192,78);
+    voice.playback_age_ms=250; pp_ui_render(&view);
+    uint32_t quiet=region_hash(72,224,96,88);
+    assert(loud!=quiet && loud_card!=region_hash(24,58,192,78));
+    snapshot("passport-xiaozhi-speaking-pause.rgb");
+    voice.playback_age_ms=0; voice.playback_level=0; pp_ui_render(&view);
+    assert(region_hash(72,224,96,88)==quiet);
+    /* Foreground-only reset; dark-running continues voice but never draws or
+     * catches up old motion. An under-two-second gap also tests explicit reset. */
+    voice.state=PP_VOICE_LISTENING; voice.level=0;
+    pp_xiaozhi_module.tick(NULL,20,false); pp_ui_render(&view);
+    uint32_t fresh=region_hash(72,224,96,88);
+    tick(1000); pp_ui_render(&view); uint32_t moved=region_hash(72,224,96,88);
+    assert(moved!=fresh);
+    pp_xiaozhi_module.tick(NULL,20,false); tick(1000);
+    assert(region_hash(72,224,96,88)==moved);
+    pp_xiaozhi_module.tick(NULL,20,true); pp_ui_render(&view);
+    assert(region_hash(72,224,96,88)==fresh);
+    /* Reviewable actual-render frames: variation, speech and silent pauses. */
+    for(unsigned i=0;i<24;++i) {
+        voice.state=i<6?PP_VOICE_LISTENING:i<12?PP_VOICE_THINKING:PP_VOICE_SPEAKING;
+        voice.level=1200;
+        voice.playback_level=i%5==0?0:i%3==0?3200:1200;
+        voice.playback_age_ms=0;
+        pp_ui_render(&view); tick(200);
+        char filename[64]; snprintf(filename,sizeof(filename),"passport-xiaozhi-motion-%02u.rgb",i);
+        snapshot(filename);
     }
     /* Dark-running allows an intentional talk key; menu/paused blocks it. */
     pp_xiaozhi_module.tick(NULL,20,false); pp_dispatch(&runtime,PP_OK); assert(presses==1);
@@ -161,7 +204,7 @@ int main(void)
     lv_obj_t *probe=pp_avatar_view_create(root,72,52); assert(probe); lv_obj_delete(probe);
     probe=pp_avatar_view_create(root,72,52); assert(probe); lv_obj_delete(probe);
     assert(lv_mem_test()==LV_RESULT_OK);
-    printf("Yaya UI/lifecycle: PASS (2000 app switches; shared owner deletion; pet-save isolation; focus/dark input; mock opens=%u closes=%u; LVGL %zu -> %zu free)\n",
-        opens,closes,before.free_size,after.free_size);
+    printf("Yaya UI/lifecycle: PASS (2000 app switches; shared owner deletion; pet-save isolation; focus/dark input; playback/silence pixels; mock opens=%u closes=%u; LVGL %zu -> %zu free; peak=%zu)\n",
+        opens,closes,before.free_size,after.free_size,after.max_used);
     puts("Cloud/audio snapshots are simulated; microphone and speaker require device acceptance.");
 }
