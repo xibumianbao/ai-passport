@@ -23,7 +23,7 @@ bool pp_pet_store_open(pp_pet_save_t *save)
     if(pp_pet_decode(save,durable,sizeof(durable))) return true;
     pp_pet_defaults(save,987); return true;
 }
-bool pp_pet_store_write(void *ctx,const uint8_t *bytes)
+bool pp_pet_store_write(void *ctx,const uint8_t bytes[PP_PET_SAVE_SIZE])
 {
     (void)ctx; ++writes; if(store_fail) return false;
     memcpy(durable,bytes,sizeof(durable)); return true;
