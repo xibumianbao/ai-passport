@@ -81,6 +81,7 @@ void pp_ui_render(const pp_view_t *v)
     link_icon(s_wifi,v->wifi); link_icon(s_ble,v->ble);
     if(v->module!=s_module) {
         lv_obj_clean(s_content); s_module=v->module;
+        lv_obj_set_style_bg_color(s_content,lv_color_hex(0xf4f3ef),0);
         /* create_ui may read parent geometry before the first display refresh. */
         lv_obj_update_layout(s_content);
         if(s_module && s_module->create_ui) s_module->create_ui(s_content);

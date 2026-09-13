@@ -330,7 +330,9 @@ static bool json_message(voice_t *v)
     } else if(type && !strcmp(type,"tts")) {
         const char *state=str(root,"state");
         if(!v->hello || !state) ok=false;
-        else if(v->response && !strcmp(state,"start")) { v->listening=false; v->tts=true; }
+        else if(v->response && !strcmp(state,"start")) {
+            v->listening=false; v->tts=true; esp_opus_dec_reset(v->decoder);
+        }
         else if(v->response && !strcmp(state,"stop")) {
             ok=silence(v); v->tts=v->response=false;
             if(ok) publish(v,PP_VOICE_READY,"OK to talk again");

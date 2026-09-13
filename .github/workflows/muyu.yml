@@ -85,6 +85,7 @@ jobs:
           ./preview/passport_preview
           ./preview/passport_catalog_test
           ./preview/pet_preview
+          ./preview/xiaozhi_preview
           ./preview/muyu_audio muyu-knock.pcm
           python3 ../tools/preview/write_media.py
       - name: Upload UI previews and generated tone
