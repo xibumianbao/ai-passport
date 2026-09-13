@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define PP_VERSION "0.4.1"
+#define PP_VERSION "0.5.0"
 #define PP_LONG_PRESS_MS 800
 #define PP_MAX_RESOURCES 8
 typedef enum { PP_UP, PP_DOWN, PP_OK, PP_MENU, PP_NONE } pp_key_t;

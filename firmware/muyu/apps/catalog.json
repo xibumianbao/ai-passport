@@ -2,13 +2,13 @@
   "schema": 1,
   "apps": [
     {
-      "id": "muyu",
-      "name": "Muyu",
-      "version": "0.3.0",
+      "id": "xiaozhi",
+      "name": "Xiaozhi",
+      "version": "0.1.0",
       "author": "AI Passport",
-      "component": "pp_app_muyu",
-      "symbol": "pp_muyu_module",
-      "namespace": "app_muyu"
+      "component": "pp_app_xiaozhi",
+      "symbol": "pp_xiaozhi_module",
+      "namespace": "svc_xiaozhi"
     },
     {
       "id": "pet",

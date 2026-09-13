@@ -47,6 +47,10 @@ run_static_checks() {
         tests/test_pet_store.c components/pp_app_pet/pp_pet.c components/pp_app_pet/pp_pet_store.c \
         -o "${test_dir}/test_pet_store"
     "${test_dir}/test_pet_store"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_voice/include tests/test_voice_wire.c components/pp_voice/pp_voice_wire.c \
+        -o "${test_dir}/test_voice_wire"
+    "${test_dir}/test_voice_wire"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Icomponents/pp_avatar/include \
         tools/preview/pet_art_export.c components/pp_avatar/pp_pixel_art.c components/pp_avatar/pp_pixel_buffer.c \
         -o "${test_dir}/pet_art_export"

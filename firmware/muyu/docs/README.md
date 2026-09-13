@@ -1,11 +1,12 @@
 # FoloToy AI Passport
 
+English | [简体中文](README.zh_CN.md)
+
 This derivative builds the [Passport platform](../README.md); use that application guide
 for controls, sources, build artifacts and device acceptance.
 
-Product additions: [Yaya Pet test build](pet-v1.md) and [planned voice integration](voice-integration.md).
-
-English | [简体中文](README.zh_CN.md)
+Product additions: [Yaya Pet test build](pet-v1.md), [standalone Xiaozhi](xiaozhi-standalone.md)
+and [planned voice integration](voice-integration.md).
 
 FoloToy AI Passport is open wearable AI hardware. This repository is the development baseline for the device. It keeps the **hardware facts, stable interfaces, resource boundaries, reference implementations, and validation methods** needed to build applications in one place.
 

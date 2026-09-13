@@ -46,6 +46,14 @@ jobs:
           command: idf.py --version && ./tools/validate.sh --firmware
       - name: Return generated files to the runner user
         run: sudo chown -R "$(id -u):$(id -g)" firmware/muyu/build
+      - name: Export component resolution for reproducibility review
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: passport-component-lock-${{ github.event.pull_request.head.sha || github.sha }}
+          path: firmware/muyu/dependencies.lock
+          if-no-files-found: error
+          retention-days: 14
       - name: Confirm pinned components
         run: |
           git diff --exit-code -- firmware/muyu/dependencies.lock

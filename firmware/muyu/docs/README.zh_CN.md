@@ -2,7 +2,7 @@
 
 本项目编译[Passport 多应用底座](../README.zh_CN.md)，按键操作、来源、构建产物和实机验收以应用说明为准。
 
-新增产品说明：[芽芽宠物测试版](pet-v1.zh_CN.md)、[后续语音接入](voice-integration.zh_CN.md)。
+新增产品说明：[芽芽宠物测试版](pet-v1.zh_CN.md)、[独立小智](xiaozhi-standalone.zh_CN.md)、[后续语音接入](voice-integration.zh_CN.md)。
 
 [English](README.md) | 简体中文
 

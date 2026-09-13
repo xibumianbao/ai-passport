@@ -26,7 +26,7 @@ def analyze(raw,apps,image_bytes):
     owned=sum(a['flash_bytes'] for a in result)
     assert 0<owned<=image_bytes<=0x300000
     shared=[]
-    for component in ('pp_avatar',):
+    for component in ('pp_avatar','pp_voice'):
         flash=ram=0
         for mem,info in raw['memory_types'].items():
             for section,sec in info['sections'].items():
@@ -61,9 +61,11 @@ def main():
             avatar=next(a for a in report['shared_components'] if a['component']=='pp_avatar')
             assert pet['flash_bytes']<=128*1024, 'Pet exceeds its small-app Flash budget'
             assert avatar['flash_bytes']<=48*1024, 'Shared avatar exceeds its Flash budget'
-            assert report['program_free']>=1280*1024, 'Preserve at least 1.25 MiB for future voice work'
-            report['future_voice_reserve_min_bytes']=1280*1024
-            print('Pet capacity: PASS (pet <=128 KiB, avatar <=48 KiB; >=1.25 MiB future headroom)')
+            voice=any(a['id']=='xiaozhi' for a in report['apps'])
+            reserve=(512 if voice else 1280)*1024
+            assert report['program_free']>=reserve, 'Preserve the documented next-app Flash reserve'
+            report['next_app_reserve_min_bytes']=reserve
+            print(f'App capacity: PASS (pet <=128 KiB, avatar <=48 KiB; >={reserve//1024} KiB headroom)')
         (b/'capacity-report.json').write_text(json.dumps(report,indent=2)+'\n')
         # Sanitized summary only: raw map contains local build paths.
         print('Capacity report: PASS (final image and application archive sizes match embedded metrics)')
