@@ -37,9 +37,11 @@ def package(source,output):
     with zipfile.ZipFile(zpath,'w',zipfile.ZIP_DEFLATED) as z:
         z.write(target,target.name); z.writestr('SHA256SUMS',digest+'  '+target.name+'\n')
         z.writestr('README.txt',instructions); z.writestr('test-results.txt','\n'.join(evidence)+'\nDevice tests: NOT RUN\n')
+        z.write(root/'LICENSE','LICENSE')
+        z.write(root/'assets/fonts/SourceHanSans-OFL.txt','licenses/SourceHanSans-OFL.txt')
         for f in ['build-info.json','capacity-report.json']: z.write(fw/f,f)
         z.write(source/'ci-result.json','ci-result.json')
-        for f in ['platform-acceptance.zh_CN.md','app-integration.zh_CN.md','community-compatibility.zh_CN.md']:
+        for f in ['platform-acceptance.md','platform-acceptance.zh_CN.md','app-integration.md','app-integration.zh_CN.md','community-compatibility.md','community-compatibility.zh_CN.md']:
             z.write(root/'docs'/f,'docs/'+f)
         for f in sorted((source/'preview').glob('passport-*.png')): z.write(f,'preview/'+f.name)
     with zipfile.ZipFile(zpath) as z:

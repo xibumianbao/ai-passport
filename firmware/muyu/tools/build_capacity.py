@@ -1,6 +1,7 @@
 """Embed and verify per-app linked contributions; never apportion shared SDKs."""
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -37,7 +38,10 @@ def main():
     parser=argparse.ArgumentParser(); parser.add_argument('build',type=Path); parser.add_argument('--verify',action='store_true'); args=parser.parse_args()
     root=Path(__file__).resolve().parent.parent; b=args.build
     cmd=[sys.executable,'-m','esp_idf_size','--format','raw',str(b/'FoloToy-AI-Passport.map')]
-    raw=json.loads(subprocess.check_output(cmd,text=True)); report=analyze(raw,read_catalog(root),(b/'FoloToy-AI-Passport.bin').stat().st_size)
+    # IDF 5.5.3 ships the 1.x CLI, whose default is legacy (no raw format).
+    # Select its documented NG implementation; 2.x already uses NG by default.
+    env=dict(os.environ,ESP_IDF_SIZE_NG='1')
+    raw=json.loads(subprocess.check_output(cmd,text=True,env=env)); report=analyze(raw,read_catalog(root),(b/'FoloToy-AI-Passport.bin').stat().st_size)
     h=b/'passport_generated/passport_metrics.h'; expected=initializer(report)
     if args.verify:
         assert h.read_text()==expected, 'Capacity changed after second link; refuse stale device metrics'
