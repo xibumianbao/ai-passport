@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h> /* esp_audio_types.h 2.5.0 requires the caller's integer types. */
 #include "esp_audio_types.h"
 
 #define PP_VOICE_PCM_BYTES 1920 /* 16 kHz mono, 16-bit, 60 ms */
