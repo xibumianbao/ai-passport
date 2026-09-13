@@ -6,7 +6,62 @@ Platform 0.5.0 introduces a standalone Xiaozhi application. The pet remains offl
 personality, pet dialogue and iDA are later stages. Cloud personality and memory
 remain controlled by the device's existing Xiaozhi agent configuration.
 
-## 0.5.1: C3 runtime-memory correction
+## 0.5.2: layered diagnostics, device validation pending
+
+New 0.5.1 serial evidence matches the firmware version and ELF digest: encoder
+and decoder creation succeeds, but starting recording produces
+`A stack overflow in task xiaozhi has been detected`, followed by reboot.
+This differs from the 0.5.0 encoder allocation failure. The stack guard detects
+corruption; fixed PCM tests must still distinguish actual depth from other writes.
+
+This build preserves VOIP, 16 kHz, 60 ms, 24 kbps and complexity 0, increasing
+the worker from 24 to 40 KiB as an initial measurement budget. The Espressif
+[2.5.0 documentation](https://components.espressif.com/components/espressif/esp_audio_codec/versions/2.5.0/readme)
+excludes stack from its heap tables and describes roughly 40K stack for all
+encoders; it does not establish an exact Opus/C3 minimum. The extra 16 KiB
+comes from heap, so TLS-active minimum heap and largest block must be measured.
+Changing project optimization cannot rebuild the SDK's precompiled Opus library.
+
+Opening Xiaozhi now processes fixed PCM before device discovery, TLS or I2S.
+Silence, waveform, deterministic noise and near-clipping inputs exercise actual
+encoding/decoding with short reused buffers; no ambient recording, upload or
+audio persistence occurs. Only a successful probe proceeds to the cloud.
+Serial diagnostics report SDK results, lengths, duration and stack/heap, and mark
+first real I2S capture, recording encode and reply decode boundaries. A 4 KiB
+remaining-stack floor is a project diagnostic threshold. A TLS-active largest
+block near 20 KiB is an observation target, not an SDK guarantee or automatic pass.
+Codec parameters, BSP, task-reclamation order, Wi-Fi/TLS and pet logic are unchanged.
+See the sanitized [validation observations](xiaozhi-voice-validation.json).
+
+A real host voice round trip has passed: 6.28 seconds of synthetic speech,
+105 uploaded frames and 23 reply frames; server 24 kHz Opus decoded at 16 kHz.
+STT matched the test request and TTS matched the expected reply, producing
+1.38 seconds of non-silent audio. A second turn after transport-deadline changes
+also passed semantics with 105 uploaded and 19 received frames.
+It used the authorized connected device identity
+and a temporary host Client UUID. Tokens and transcripts stayed in RAM; no
+activation, agent-configuration change or tool execution occurred. This does not
+validate firmware persistent identity, microphone, speaker, ESP codec stack or
+application lifecycle.
+
+The repository-root `tools/xiaozhi_voice_probe.py` accepts an in-memory
+`ConnectionConfig` from a trusted local wrapper and a 16 kHz mono PCM16 WAV up to
+30 seconds. It returns safe statistics plus RAM-only STT/TTS for semantic checking,
+with a 90-second response bound. Dependencies are websocket-client and Xiph
+libopus; DLLs, audio, device identifiers and discovery responses stay outside Git.
+Run offline tests with
+`python -m unittest discover -s tests -p test_xiaozhi_voice_probe.py -v`; CI also runs them.
+
+Device sequence: flash 0.5.2, open Xiaozhi and observe the local diagnostic; after
+Ready, press OK to record and OK to send, then check audible output and logs.
+Follow with repeated turns, menu cancellation during recording/reply, re-entry,
+network loss and both screen-off modes. Old self-deleting worker stacks may await
+IDLE reclamation during rapid re-entry, and BSP initialization rollback is incomplete;
+these separate lifecycle risks are not fixed by this single-variable diagnostic.
+Retain the first error, firmware version, stage and comparable memory readings
+before choosing the next change; do not keep increasing stack without evidence.
+
+## 0.5.1: C3 runtime-memory correction (historical implementation)
 
 The 0.5.0 device test failed before recording: the SDK logged
 `ESP_OPUS_ENC: Opus encoder init failed. ret:-7.` and the screen showed
@@ -44,9 +99,8 @@ Host regression runs 10,000 codec direction changes and injected allocation,
 partial-allocation, null-handle and frame-query failures against the production
 owner. Its synthetic allocator budget is not a measurement of Espressif Opus RAM.
 The firmware gate checks resolved memory settings. 0.5.0 Device: FAIL at encoder
-initialization. 0.5.1 Device: NOT RUN until flashed; require Ready, real captured
-frames, audible replies, repeated turns, menu cancellation, dark mode and Wi-Fi
-retry with stable comparable-stage heap before accepting it.
+initialization. 0.5.1 was NOT RUN at delivery; subsequent device testing is FAIL
+with a recording-stage task stack overflow. See the 0.5.2 diagnostic above.
 
 ## Controls and ownership
 

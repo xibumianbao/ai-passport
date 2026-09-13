@@ -3,9 +3,9 @@ name: Passport platform firmware
 on:
   push:
     branches: ["codex/muyu-mvp", "codex/platform-base", "codex/pet-avatar-v1", "main"]
-    paths: ["firmware/muyu/**", ".github/workflows/muyu.yml"]
+    paths: ["firmware/muyu/**", "tools/xiaozhi_voice_probe.py", "tests/test_xiaozhi_voice_probe.py", ".github/workflows/muyu.yml"]
   pull_request:
-    paths: ["firmware/muyu/**", ".github/workflows/muyu.yml"]
+    paths: ["firmware/muyu/**", "tools/xiaozhi_voice_probe.py", "tests/test_xiaozhi_voice_probe.py", ".github/workflows/muyu.yml"]
   workflow_dispatch:
 
 permissions:
@@ -25,6 +25,8 @@ jobs:
       - name: Repository, firmware-layout and host logic checks
         working-directory: firmware/muyu
         run: ./tools/validate.sh --static
+      - name: Host voice protocol and lifecycle tests (offline)
+        run: python3 -m unittest discover -s tests -p test_xiaozhi_voice_probe.py -v
       - name: Check the project workflow
         run: |
           actionlint_bin="$(firmware/muyu/tools/install-actionlint.sh)"

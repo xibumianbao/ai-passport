@@ -4,6 +4,7 @@
 #include "pp_voice.h"
 #include "pp_voice_wire.h"
 #include "pp_voice_codec.h"
+#include "pp_voice_selftest.h"
 #include "passport_audio.h"
 #include "passport_radio.h"
 #include "passport_core.h"
@@ -32,7 +33,10 @@
 #include <time.h>
 
 #define OTA_URL "https://api.tenclass.net/xiaozhi/ota/"
-#define WORKER_STACK 24576
+/* Diagnostic baseline: the SDK's real encoder-chain test uses 40 KiB.
+ * Keep codec parameters unchanged; board high-water measurements decide fit. */
+#define WORKER_STACK (40*1024)
+#define STACK_MARGIN (4*1024)
 #define PCM_BYTES PP_VOICE_PCM_BYTES
 #define IO_TIMEOUT 1000
 static const char *TAG="pp_voice";
@@ -50,6 +54,7 @@ typedef struct {
     uint8_t tx[PP_VOICE_OPUS_MAX+16], chunk[1024];
     int16_t pcm[1920]; /* max 120 ms output, decoder requests 60 ms */
     bool audio, hello, listening, response, tts, failed;
+    bool read_measured, encode_measured, decode_measured, write_measured;
     uint32_t tx_count, rx_count;
     int64_t last_rx, listen_at, response_at, last_ping;
 } voice_t;
@@ -80,6 +85,44 @@ static void memory_log(const char *stage)
     ESP_LOGI(TAG,"Memory %s: free=%u largest=%u minimum=%u stack=%u",stage,
         (unsigned)heap_caps_get_free_size(caps),(unsigned)heap_caps_get_largest_free_block(caps),
         (unsigned)heap_caps_get_minimum_free_size(caps),(unsigned)uxTaskGetStackHighWaterMark(NULL));
+}
+static bool stack_margin(voice_t *v,const char *stage)
+{
+    unsigned remaining=uxTaskGetStackHighWaterMark(NULL);
+    if(remaining>=STACK_MARGIN) return true;
+    char detail[80];
+    snprintf(detail,sizeof(detail),"Low stack after %s: %u bytes",stage,remaining);
+    return fail(v,detail);
+}
+static bool test_live(void *context) { return live(context); }
+static uint64_t test_now(void *context) { (void)context; return (uint64_t)esp_timer_get_time(); }
+static void test_yield(void *context) { (void)context; vTaskDelay(pdMS_TO_TICKS(1)); }
+static bool test_observe(void *context,const pp_voice_test_event_t *e)
+{
+    voice_t *v=context;
+    if(e->log) {
+        ESP_LOGI(TAG,"Self-test p=%u %s frames=%u code=%d bytes=%u consumed=%u us=%lu bounds=%u",
+            e->pattern,e->stage,e->frames,(int)e->error,(unsigned)e->bytes,(unsigned)e->consumed,
+            (unsigned long)e->elapsed_us,(unsigned)e->bounds_ok);
+        memory_log(e->stage);
+    }
+    if(e->error!=ESP_AUDIO_ERR_OK || !e->bounds_ok) {
+        char detail[80];
+        snprintf(detail,sizeof(detail),"Self-test %s: code %d bounds %u",e->stage,(int)e->error,(unsigned)e->bounds_ok);
+        return fail(v,detail);
+    }
+    return stack_margin(v,e->stage);
+}
+static bool offline_selftest(voice_t *v)
+{
+    publish(v,PP_VOICE_STARTING,"Offline audio self-test");
+    const pp_voice_test_hooks_t hooks={.context=v,.live=test_live,.observe=test_observe,
+        .now_us=test_now,.yield=test_yield};
+    bool ok=pp_voice_selftest(&v->codec,v->pcm,sizeof(v->pcm),v->tx,sizeof(v->tx),
+        v->message.data,sizeof(v->message.data),&hooks);
+    if(!ok) return !live(v)?false:fail(v,"Offline codec self-test failed");
+    memory_log("offline self-test passed (no voice I/O)");
+    return stack_margin(v,"offline self-test");
 }
 void pp_voice_snapshot(pp_voice_snapshot_t *out)
 {
@@ -392,14 +435,31 @@ static bool play(voice_t *v)
         .frame_recover=ESP_AUDIO_DEC_RECOVERY_NONE};
     esp_audio_dec_out_frame_t out={.buffer=(uint8_t *)v->pcm,.len=sizeof(v->pcm)};
     esp_audio_dec_info_t info={0};
-    if(esp_opus_dec_decode(v->codec.handle,&in,&out,&info)!=ESP_AUDIO_ERR_OK ||
-       in.consumed!=length || !out.decoded_size || out.decoded_size>sizeof(v->pcm) || out.decoded_size%2) return false;
+    if(!v->decode_measured) memory_log("first cloud decode begin");
+    int64_t began=esp_timer_get_time();
+    esp_audio_err_t error=esp_opus_dec_decode(v->codec.handle,&in,&out,&info);
+    bool valid=in.consumed==length && out.decoded_size && out.decoded_size<=sizeof(v->pcm) && !(out.decoded_size%2);
+    if(!v->decode_measured || error!=ESP_AUDIO_ERR_OK || !valid) {
+        ESP_LOGI(TAG,"Cloud decode code=%d in=%u consumed=%u out=%u need=%u us=%lld bounds=%u",
+            (int)error,(unsigned)length,(unsigned)in.consumed,(unsigned)out.decoded_size,
+            (unsigned)out.needed_size,(long long)(esp_timer_get_time()-began),(unsigned)valid);
+        memory_log("first cloud decode end"); v->decode_measured=true;
+    }
+    if(error!=ESP_AUDIO_ERR_OK || !valid) return fail(v,"Cloud decode failed; see diagnostic log");
+    if(!stack_margin(v,"cloud decode")) return false;
     /* Opus supports decoder output at 16 kHz even for a 24 kHz sender. Keep
      * I2S at one format; no extra resampler, no clock changes during a turn. */
+    if(!v->write_measured) memory_log("first playback write begin");
+    began=esp_timer_get_time();
     for(size_t offset=0;offset<out.decoded_size && live(v);offset+=320) {
         size_t n=out.decoded_size-offset; if(n>320) n=320;
         if(bsp_audio_write((uint8_t *)v->pcm+offset,n)!=ESP_OK) return false;
     }
+    if(!v->write_measured) {
+        ESP_LOGI(TAG,"Playback write bytes=%u us=%lld",(unsigned)out.decoded_size,(long long)(esp_timer_get_time()-began));
+        memory_log("first playback write end"); v->write_measured=true;
+    }
+    if(!stack_margin(v,"playback write")) return false;
     if(!live(v)) return false;
     ++v->rx_count; publish(v,PP_VOICE_SPEAKING,"OK to stop the answer"); return true;
 }
@@ -437,14 +497,32 @@ static bool receive(voice_t *v)
 static bool capture(voice_t *v)
 {
     /* Chunked reads bound cancellation latency; never record after revocation. */
+    if(!v->read_measured) memory_log("first capture read begin");
+    int64_t began=esp_timer_get_time();
     for(unsigned i=0;i<PCM_BYTES/320 && live(v);++i)
         if(bsp_audio_read((uint8_t *)v->pcm+i*320,320)!=ESP_OK) return false;
     if(!live(v)) return false;
+    if(!v->read_measured) {
+        ESP_LOGI(TAG,"Capture read bytes=%u us=%lld",(unsigned)PCM_BYTES,(long long)(esp_timer_get_time()-began));
+        memory_log("first capture read end"); v->read_measured=true;
+    }
+    if(!stack_margin(v,"capture read")) return false;
     uint32_t level=0;
     for(unsigned i=0;i<PCM_BYTES/2;++i) level+=(unsigned)abs(v->pcm[i]);
     esp_audio_enc_in_frame_t in={.buffer=(uint8_t *)v->pcm,.len=PCM_BYTES};
     esp_audio_enc_out_frame_t out={.buffer=v->tx+16,.len=PP_VOICE_OPUS_MAX};
-    if(v->codec.mode!=PP_CODEC_ENCODE || esp_opus_enc_process(v->codec.handle,&in,&out)!=ESP_AUDIO_ERR_OK) return false;
+    if(v->codec.mode!=PP_CODEC_ENCODE) return false;
+    if(!v->encode_measured) memory_log("first capture encode begin");
+    began=esp_timer_get_time();
+    esp_audio_err_t error=esp_opus_enc_process(v->codec.handle,&in,&out);
+    bool valid=out.encoded_bytes>0 && out.encoded_bytes<=PP_VOICE_OPUS_MAX;
+    if(!v->encode_measured || error!=ESP_AUDIO_ERR_OK || !valid) {
+        ESP_LOGI(TAG,"Capture encode code=%d in=%u out=%u us=%lld bounds=%u",(int)error,
+            (unsigned)PCM_BYTES,(unsigned)out.encoded_bytes,(long long)(esp_timer_get_time()-began),(unsigned)valid);
+        memory_log("first capture encode end"); v->encode_measured=true;
+    }
+    if(error!=ESP_AUDIO_ERR_OK || !valid) return fail(v,"Capture encode failed; see diagnostic log");
+    if(!stack_margin(v,"capture encode")) return false;
     size_t n=pp_voice_pack(v->version,v->tx_count*60,v->tx+16,out.encoded_bytes,v->tx,sizeof(v->tx));
     if(!n || !live(v) || esp_transport_ws_send_raw(v->ws,WS_TRANSPORT_OPCODES_BINARY|WS_TRANSPORT_OPCODES_FIN,
         (char *)v->tx,(int)n,IO_TIMEOUT)!=(int)n) return false;
@@ -460,6 +538,9 @@ static void worker(void *arg)
     esp_log_level_set("TRANSPORT_WS",ESP_LOG_WARN);
     esp_log_level_set("HTTP_CLIENT",ESP_LOG_WARN);
     memory_log("worker started");
+    /* Run once for this entry, before this worker discovers/connects a cloud
+     * endpoint or owns I2S. System Wi-Fi may already be managed by the base. */
+    if(!offline_selftest(v)) goto done;
     pp_radio_state_t radio;
     int64_t wifi_started=now_ms();
     while(live(v)) {

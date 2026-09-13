@@ -1,0 +1,47 @@
+{
+  "date": "2026-09-13",
+  "evidence_policy": "Sanitized observations only; no identifiers, tokens, transcripts or raw memory dumps.",
+  "device_0_5_1": {
+    "source_commit": "dcdb4457dec5f461d90d12b321424184232b11a5",
+    "firmware_version_observed": "0.5.1",
+    "elf_sha_prefix_observed": "f2b2b5ebf",
+    "status": "FAIL",
+    "encoder_creation": "PASS",
+    "decoder_creation": "PASS",
+    "fatal_message": "A stack overflow in task xiaozhi has been detected",
+    "phase": "After recording encoder creation, before the first reported uploaded frame",
+    "worker_stack_bytes": 24576,
+    "before_recording_encoder_heap_bytes": 70224,
+    "after_recording_encoder_heap_bytes": 45584,
+    "after_recording_encoder_largest_block_bytes": 31744,
+    "before_processing_stack_high_water_bytes": 20544,
+    "boundary": "Guard failure and restart confirmed. Fixed-PCM isolation is still needed to distinguish stack depth from other corrupting writes."
+  },
+  "host_audio": {
+    "status": "PASS",
+    "input": "Nonprivate synthetic speech",
+    "client_identity": "Authorized connected-device identifier and temporary RAM-only host Client UUID",
+    "discovery_http": 200,
+    "activation_required": false,
+    "protocol": 1,
+    "server_sample_rate": 24000,
+    "input_and_output_sample_rate": 16000,
+    "frame_duration_ms": 60,
+    "opus_implementation": "Official Xiph libopus 1.6.1, locally compiled",
+    "runs": [
+      {"input_seconds": 6.28, "tx_frames": 105, "rx_frames": 23, "output_seconds": 1.38, "output_rms": 2741.64, "stt_semantics": true, "tts_semantics": true},
+      {"input_seconds": 6.28, "tx_frames": 105, "rx_frames": 19, "output_seconds": 1.14, "output_rms": 2650.38, "stt_semantics": true, "tts_semantics": true}
+    ],
+    "configuration_changes": false,
+    "tool_calls_executed": false,
+    "boundary": "PC audio round trips do not validate ESP codec resource use, persistent firmware identity, microphone, speaker or app switching."
+  },
+  "device_0_5_2": {
+    "status": "NOT RUN",
+    "worker_stack_bytes": 40960,
+    "stack_margin_diagnostic_threshold_bytes": 4096,
+    "largest_block_observation_target_bytes": 20480,
+    "scope": "Fixed PCM codec isolation before voice networking/I2S, then first real capture and playback markers",
+    "pending": ["fixed PCM processing", "TLS-active memory budget", "physical microphone/speaker", "repeated turns and cancellation", "rapid app re-entry", "screen-off modes", "network loss/retry"]
+  }
+}

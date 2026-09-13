@@ -55,6 +55,11 @@ run_static_checks() {
         -Itests/voice_stubs -Icomponents/pp_voice/include \
         tests/test_voice_codec.c components/pp_voice/pp_voice_codec.c -o "${test_dir}/test_voice_codec"
     "${test_dir}/test_voice_codec"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Itests/voice_stubs -Icomponents/pp_voice/include \
+        tests/test_voice_selftest.c components/pp_voice/pp_voice_codec.c components/pp_voice/pp_voice_selftest.c \
+        -o "${test_dir}/test_voice_selftest"
+    "${test_dir}/test_voice_selftest"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Icomponents/pp_avatar/include \
         tools/preview/pet_art_export.c components/pp_avatar/pp_pixel_art.c components/pp_avatar/pp_pixel_buffer.c \
         -o "${test_dir}/pet_art_export"

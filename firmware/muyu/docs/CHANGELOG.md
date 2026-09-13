@@ -4,6 +4,13 @@
 
 # Changelog
 
+## 0.5.2 - Xiaozhi codec diagnostics
+
+- Run fixed PCM through the actual encoder and decoder before voice networking or I2S acquisition.
+- Measure a 40 KiB worker stack without changing Opus parameters; log first real capture/decode boundaries.
+- Add a bounded host voice probe with credential-safe statistics and offline protocol tests.
+- 0.5.1 hardware logs confirm a Xiaozhi task stack overflow after encoder creation. This diagnostic build still requires device validation.
+
 ## 0.5.1 - Xiaozhi runtime memory
 
 - Address the real C3 Opus encoder allocation failure with upstream Wi-Fi/TLS memory settings.
