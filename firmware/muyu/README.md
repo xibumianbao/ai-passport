@@ -1,10 +1,13 @@
 [简体中文](README.zh_CN.md) · **English**
 
-# Passport multi-application platform 0.5.0
+# Passport multi-application platform 0.5.1
 
 A persistent system shell for FoloToy AI Passport. Applications contains standalone Xiaozhi and Yaya Pet. Muyu is retired from the firmware. Device status and capacity belong to Settings. The last stable application resumes after restart, with first/failed startup falling back to the application list.
 
 ## Standalone Xiaozhi test application
+
+0.5.1 corrects the 0.5.0 on-device Opus allocation failure with C3 Wi-Fi/TLS
+memory settings and one active codec direction. New hardware acceptance is pending.
 
 Open Applications -> Xiaozhi. At Ready, short OK starts recording; short OK again
 sends it (30-second limit). OK during an answer stops the connection; OK again

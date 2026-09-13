@@ -4,6 +4,19 @@
 
 # Changelog
 
+## 0.5.1 - Xiaozhi runtime memory
+
+- Address the real C3 Opus encoder allocation failure with upstream Wi-Fi/TLS memory settings.
+- Use one codec direction at a time; release codecs while idle, thinking or cancelled.
+- Preserve specific initialization errors and report internal heap, largest block and stack headroom.
+- Add 10,000-turn codec ownership and failure-injection regression checks. New hardware acceptance is pending.
+
+## 0.5.0 - Standalone Xiaozhi test build
+
+- Add shared-Wi-Fi Xiaozhi voice, protected identity and bounded manual half-duplex sessions.
+- Remove Muyu from the linked firmware; keep the pixel pet offline for later voice integration.
+- Device testing subsequently found an Opus encoder allocation failure; superseded by 0.5.1.
+
 ## 0.4.1 - Compact system status bar
 
 - Place Wi-Fi and BLE icons beside the battery, replacing the separate network-text row.

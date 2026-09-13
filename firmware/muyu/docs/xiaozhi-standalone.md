@@ -6,6 +6,48 @@ Platform 0.5.0 introduces a standalone Xiaozhi application. The pet remains offl
 personality, pet dialogue and iDA are later stages. Cloud personality and memory
 remain controlled by the device's existing Xiaozhi agent configuration.
 
+## 0.5.1: C3 runtime-memory correction
+
+The 0.5.0 device test failed before recording: the SDK logged
+`ESP_OPUS_ENC: Opus encoder init failed. ret:-7.` and the screen showed
+`Not enough memory for Opus`. In the [Opus API](https://github.com/xiph/opus/blob/v1.5.2/include/opus_defines.h),
+-7 means allocation failure. This is runtime SRAM, not the 1.07 MiB program-Flash
+headroom reported for that image. The observed 61,416-byte heap was logged AFTER
+transport cleanup, with worker/context still allocated; it is not the free heap
+at the failed allocation, nor proof of a leak. Largest free block was not recorded.
+
+0.5.1 follows the [upstream memory settings](https://github.com/FoloToy/folo-ai-passport-xiaozhi/blob/d24fce080d86d7cc642f71585f6efde40fb99104/sdkconfig.defaults):
+optional Wi-Fi instruction paths run from Flash, freeing shared C3 instruction/data
+SRAM; TLS buffers are dynamic and peer certificates are released after verification.
+The [IDF 5.5.3 settings](https://github.com/espressif/esp-idf/blob/v5.5.3/components/mbedtls/Kconfig)
+retain 16 KiB incoming TLS records and normal certificate/hostname validation.
+TLS configuration data is released after the handshake, renegotiation is disabled,
+and every reconnect creates a new TLS object. Network throughput must be checked
+on the board after moving the optional Wi-Fi paths out of SRAM.
+
+One `pp_voice_codec` handle owns either the encoder OR decoder. Hardware/DMA is
+prepared first; startup checks both codecs sequentially and releases them before
+Ready. Recording allocates only the encoder, listen-stop frees it before sending
+the control message, and the first TTS audio packet allocates only the decoder.
+TTS-stop and cancellation release the active codec. Idle/thinking retain neither.
+The 24 KiB worker stack and 32 KiB LVGL pool are preserved until actual stack and
+UI headroom measurements justify changes. No new assets or partition changes.
+
+Errors now identify the direction and SDK return code; generic connection errors
+cannot overwrite the first failure. Serial diagnostics record free internal heap,
+largest block, historical minimum and remaining stack at allocation/release stages.
+The final cleanup log explicitly says the worker stack is still allocated.
+Compare repeated runs at the SAME stage; first hardware initialization retains
+system DMA handles, and the historical minimum never increases.
+
+Host regression runs 10,000 codec direction changes and injected allocation,
+partial-allocation, null-handle and frame-query failures against the production
+owner. Its synthetic allocator budget is not a measurement of Espressif Opus RAM.
+The firmware gate checks resolved memory settings. 0.5.0 Device: FAIL at encoder
+initialization. 0.5.1 Device: NOT RUN until flashed; require Ready, real captured
+frames, audible replies, repeated turns, menu cancellation, dark mode and Wi-Fi
+retry with stable comparable-stage heap before accepting it.
+
 ## Controls and ownership
 
 - Select Xiaozhi in Apps. Configure Wi-Fi in system Settings if required.

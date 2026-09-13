@@ -1,10 +1,13 @@
 [English](README.md) · **简体中文**
 
-# Passport 多应用底座 0.5.0
+# Passport 多应用底座 0.5.1
 
 面向 FoloToy AI Passport 的常驻底座。Applications 包含独立小智与芽芽宠物；木鱼已从固件移除；设备状态和容量统一归入 Settings。正常重启恢复最近稳定启动的应用；首次或失败启动回到应用列表。
 
 ## 独立小智测试应用
+
+0.5.1 针对 0.5.0 实机 Opus 分配失败，调整 C3 Wi-Fi／TLS 内存配置，并改为只保留
+一个方向的编解码器。新固件仍需实机验收。
 
 Applications → Xiaozhi；Ready 时短按 OK 开始说话，再短按 OK 发送，最多 30 秒。
 回答时短按 OK 断开会话，再按 OK 重新连接；长按 OK 始终打开系统菜单。沿用底座

@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-当前迭代 [Passport 多应用底座 0.5.0](firmware/muyu/README.zh_CN.md)：新增[独立小智语音应用](firmware/muyu/docs/xiaozhi-standalone.zh_CN.md)，保留[芽芽电子宠物](firmware/muyu/docs/pet-v1.zh_CN.md)，木鱼从固件移除。继续使用顶部 Wi-Fi/BLE 图标、设备键盘配网、最近应用恢复、两种熄屏模式与容量查看。
+当前迭代 [Passport 多应用底座 0.5.1](firmware/muyu/README.zh_CN.md)：针对 0.5.0 的实机 Opus 内存分配失败，调整 Wi-Fi／TLS 的 SRAM 占用和编解码器生命周期；新固件待实机验收。保留[独立小智语音应用](firmware/muyu/docs/xiaozhi-standalone.zh_CN.md)与[芽芽电子宠物](firmware/muyu/docs/pet-v1.zh_CN.md)，木鱼从固件移除。继续使用顶部 Wi-Fi/BLE 图标、设备键盘配网、最近应用恢复、两种熄屏模式与容量查看。
 
 小智复用系统 Wi-Fi 与受保护的设备身份，通过官方发现接口和 TLS WebSocket 接入；按 OK 开始说话，再按 OK 发送。设备发现和云端语音握手已验证，固件编译、界面压力测试与硬件语音验收分别记录。宠物先保持离线；后续共用小智服务与同一云端角色/记忆，IDA 保留独立入口。详见[接入研究](firmware/muyu/docs/xiaozhi-research.zh_CN.md)和[后续规划](firmware/muyu/docs/voice-integration.zh_CN.md)。
 

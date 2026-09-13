@@ -3,6 +3,7 @@
  * All I/O and codecs belong to one worker. It never calls LVGL or app runtime. */
 #include "pp_voice.h"
 #include "pp_voice_wire.h"
+#include "pp_voice_codec.h"
 #include "passport_audio.h"
 #include "passport_radio.h"
 #include "passport_core.h"
@@ -16,6 +17,7 @@
 #include "esp_mac.h"
 #include "esp_random.h"
 #include "esp_system.h"
+#include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_opus_enc.h"
@@ -31,7 +33,7 @@
 
 #define OTA_URL "https://api.tenclass.net/xiaozhi/ota/"
 #define WORKER_STACK 24576
-#define PCM_BYTES 1920 /* 60 ms, 16 kHz, mono, signed 16-bit */
+#define PCM_BYTES PP_VOICE_PCM_BYTES
 #define IO_TIMEOUT 1000
 static const char *TAG="pp_voice";
 static portMUX_TYPE snapshot_lock=portMUX_INITIALIZER_UNLOCKED;
@@ -44,10 +46,10 @@ typedef struct {
     char mac[18], uuid[37], url[384], token[1024], session[96];
     esp_transport_handle_t ssl, ws;
     pp_voice_assembly_t message;
-    void *encoder, *decoder;
+    pp_voice_codec_t codec;
     uint8_t tx[PP_VOICE_OPUS_MAX+16], chunk[1024];
     int16_t pcm[1920]; /* max 120 ms output, decoder requests 60 ms */
-    bool audio, hello, listening, response, tts;
+    bool audio, hello, listening, response, tts, failed;
     uint32_t tx_count, rx_count;
     int64_t last_rx, listen_at, response_at, last_ping;
 } voice_t;
@@ -66,7 +68,19 @@ static void publish(voice_t *v,pp_voice_state_t state,const char *detail)
     taskEXIT_CRITICAL(&snapshot_lock);
 }
 static bool fail(voice_t *v,const char *detail)
-{ publish(v,PP_VOICE_ERROR,detail); ESP_LOGW(TAG,"%s",detail); return false; }
+{
+    /* Keep the first diagnostic; outer I/O helpers must not overwrite a codec
+     * error with a generic connection/listen error on the same call stack. */
+    if(!v->failed) { v->failed=true; publish(v,PP_VOICE_ERROR,detail); ESP_LOGW(TAG,"%s",detail); }
+    return false;
+}
+static void memory_log(const char *stage)
+{
+    const uint32_t caps=MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT;
+    ESP_LOGI(TAG,"Memory %s: free=%u largest=%u minimum=%u stack=%u",stage,
+        (unsigned)heap_caps_get_free_size(caps),(unsigned)heap_caps_get_largest_free_block(caps),
+        (unsigned)heap_caps_get_minimum_free_size(caps),(unsigned)uxTaskGetStackHighWaterMark(NULL));
+}
 void pp_voice_snapshot(pp_voice_snapshot_t *out)
 {
     taskENTER_CRITICAL(&snapshot_lock); *out=snapshot; taskEXIT_CRITICAL(&snapshot_lock);
@@ -267,22 +281,31 @@ static bool connect_ws(voice_t *v)
     v->last_rx=v->last_ping=now_ms();
     return send_text(v,hello) || fail(v,"Cannot send voice handshake");
 }
-static bool codecs(voice_t *v)
+static bool codec_select(voice_t *v,pp_codec_mode_t mode)
 {
-    esp_opus_enc_config_t enc={.sample_rate=16000,.channel=1,.bits_per_sample=16,.bitrate=24000,
-        .frame_duration=ESP_OPUS_ENC_FRAME_DURATION_60_MS,.application_mode=ESP_OPUS_ENC_APPLICATION_VOIP,
-        .complexity=0,.enable_fec=false,.enable_dtx=false,.enable_vbr=true};
-    esp_opus_dec_cfg_t dec={.sample_rate=16000,.channel=1,
-        .frame_duration=ESP_OPUS_DEC_FRAME_DURATION_60_MS,.self_delimited=false};
-    if(esp_opus_enc_open(&enc,sizeof(enc),&v->encoder)!=ESP_AUDIO_ERR_OK ||
-       esp_opus_dec_open(&dec,sizeof(dec),&v->decoder)!=ESP_AUDIO_ERR_OK)
-        return fail(v,"Not enough memory for Opus");
-    int in_bytes=0,out_bytes=0;
-    esp_opus_enc_get_frame_size(v->encoder,&in_bytes,&out_bytes);
-    if(in_bytes!=PCM_BYTES || out_bytes>PP_VOICE_OPUS_MAX) return fail(v,"Unsupported codec frame size");
+    if(!live(v)) return false;
+    memory_log(mode==PP_CODEC_ENCODE?"before encoder":"before decoder");
+    esp_audio_err_t error=pp_voice_codec_select(&v->codec,mode);
+    memory_log(mode==PP_CODEC_ENCODE?"after encoder":"after decoder");
+    if(error!=ESP_AUDIO_ERR_OK) {
+        char detail[80];
+        snprintf(detail,sizeof(detail),"Opus %s %s (%d)",mode==PP_CODEC_ENCODE?"encoder":"decoder",
+            error==ESP_AUDIO_ERR_MEM_LACK?"out of RAM":"init failed",(int)error);
+        return fail(v,detail);
+    }
+    return live(v);
+}
+static bool audio_prepare(voice_t *v)
+{
+    /* Allocate I2S/DMA before checking codec headroom. Probe each direction
+     * separately, then release it: Ready must not hide a startup codec error. */
     if(!live(v) || !pp_audio_acquire()) return fail(v,"Audio device unavailable");
     v->audio=true;
-    return true;
+    memory_log("audio ready");
+    bool ok=codec_select(v,PP_CODEC_ENCODE) && codec_select(v,PP_CODEC_DECODE);
+    pp_voice_codec_close(&v->codec);
+    memory_log("codec probe released");
+    return ok;
 }
 static bool silence(voice_t *v)
 {
@@ -294,6 +317,15 @@ static bool silence(voice_t *v)
 }
 static bool listen_command(voice_t *v,bool start)
 {
+    if(start) {
+        if(!codec_select(v,PP_CODEC_ENCODE)) return false;
+    } else {
+        /* No more captured frames after listen-stop. Reclaim the encoder
+         * before network stop/JSON/TTS processing can allocate anything. */
+        v->listening=false;
+        pp_voice_codec_close(&v->codec);
+        memory_log("recording released");
+    }
     cJSON *j=cJSON_CreateObject();
     if(!j) return false;
     cJSON_AddStringToObject(j,"session_id",v->session);
@@ -304,7 +336,7 @@ static bool listen_command(voice_t *v,bool start)
     bool ok=s && send_text(v,s); free(s);
     if(ok) {
         v->listening=start; v->response=!start; v->tts=false;
-        if(start) { v->listen_at=now_ms(); esp_opus_enc_reset(v->encoder); }
+        if(start) v->listen_at=now_ms();
         else v->response_at=now_ms();
         publish(v,start?PP_VOICE_LISTENING:PP_VOICE_THINKING,start?"Speak now. OK to send":"Waiting for your answer");
     }
@@ -333,10 +365,12 @@ static bool json_message(voice_t *v)
         const char *state=str(root,"state");
         if(!v->hello || !state) ok=false;
         else if(v->response && !strcmp(state,"start")) {
-            v->listening=false; v->tts=true; esp_opus_dec_reset(v->decoder);
+            v->listening=false; v->tts=true;
         }
         else if(v->response && !strcmp(state,"stop")) {
             ok=silence(v); v->tts=v->response=false;
+            pp_voice_codec_close(&v->codec);
+            memory_log("playback released");
             if(ok) publish(v,PP_VOICE_READY,"OK to talk again");
         }
     } else if(type && !strcmp(type,"goodbye")) ok=false;
@@ -351,11 +385,14 @@ static bool play(voice_t *v)
     const uint8_t *opus; size_t length;
     if(!pp_voice_unpack(v->version,v->message.data,v->message.used,&opus,&length)) return false;
     if(!v->response || !v->tts) return true;
+    /* Allocate only after the TTS control JSON has been freed and immediately
+     * before decoding the first packet. Subsequent packets reuse this handle. */
+    if(v->codec.mode!=PP_CODEC_DECODE && !codec_select(v,PP_CODEC_DECODE)) return false;
     esp_audio_dec_in_raw_t in={.buffer=(uint8_t *)opus,.len=length,
         .frame_recover=ESP_AUDIO_DEC_RECOVERY_NONE};
     esp_audio_dec_out_frame_t out={.buffer=(uint8_t *)v->pcm,.len=sizeof(v->pcm)};
     esp_audio_dec_info_t info={0};
-    if(esp_opus_dec_decode(v->decoder,&in,&out,&info)!=ESP_AUDIO_ERR_OK ||
+    if(esp_opus_dec_decode(v->codec.handle,&in,&out,&info)!=ESP_AUDIO_ERR_OK ||
        in.consumed!=length || !out.decoded_size || out.decoded_size>sizeof(v->pcm) || out.decoded_size%2) return false;
     /* Opus supports decoder output at 16 kHz even for a 24 kHz sender. Keep
      * I2S at one format; no extra resampler, no clock changes during a turn. */
@@ -407,7 +444,7 @@ static bool capture(voice_t *v)
     for(unsigned i=0;i<PCM_BYTES/2;++i) level+=(unsigned)abs(v->pcm[i]);
     esp_audio_enc_in_frame_t in={.buffer=(uint8_t *)v->pcm,.len=PCM_BYTES};
     esp_audio_enc_out_frame_t out={.buffer=v->tx+16,.len=PP_VOICE_OPUS_MAX};
-    if(esp_opus_enc_process(v->encoder,&in,&out)!=ESP_AUDIO_ERR_OK) return false;
+    if(v->codec.mode!=PP_CODEC_ENCODE || esp_opus_enc_process(v->codec.handle,&in,&out)!=ESP_AUDIO_ERR_OK) return false;
     size_t n=pp_voice_pack(v->version,v->tx_count*60,v->tx+16,out.encoded_bytes,v->tx,sizeof(v->tx));
     if(!n || !live(v) || esp_transport_ws_send_raw(v->ws,WS_TRANSPORT_OPCODES_BINARY|WS_TRANSPORT_OPCODES_FIN,
         (char *)v->tx,(int)n,IO_TIMEOUT)!=(int)n) return false;
@@ -422,6 +459,7 @@ static void worker(void *arg)
     voice_t *v=arg;
     esp_log_level_set("TRANSPORT_WS",ESP_LOG_WARN);
     esp_log_level_set("HTTP_CLIENT",ESP_LOG_WARN);
+    memory_log("worker started");
     pp_radio_state_t radio;
     int64_t wifi_started=now_ms();
     while(live(v)) {
@@ -434,7 +472,9 @@ static void worker(void *arg)
         publish(v,PP_VOICE_STARTING,"Waiting for system Wi-Fi"); vTaskDelay(pdMS_TO_TICKS(100));
     }
     if(!live(v)) goto done;
-    if(!identity(v) || !clock_ready(v) || !discover(v) || !connect_ws(v) || !codecs(v)) goto done;
+    if(!identity(v) || !clock_ready(v) || !discover(v) || !connect_ws(v)) goto done;
+    memory_log("secure connection ready");
+    if(!audio_prepare(v)) goto done;
     while(live(v)) {
         if(!receive(v)) { fail(v,"Connection ended. OK retry"); break; }
         int64_t now=now_ms();
@@ -457,21 +497,23 @@ static void worker(void *arg)
             }
             v->last_ping=now;
         }
+        uint32_t free_heap=esp_get_free_heap_size();
+        unsigned stack_free=uxTaskGetStackHighWaterMark(NULL);
         taskENTER_CRITICAL(&snapshot_lock);
-        if(live(v)) { snapshot.free_heap=esp_get_free_heap_size(); snapshot.stack_free=uxTaskGetStackHighWaterMark(NULL); }
+        if(live(v)) { snapshot.free_heap=free_heap; snapshot.stack_free=stack_free; }
         taskEXIT_CRITICAL(&snapshot_lock);
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 done:
+    pp_voice_codec_close(&v->codec);
     if(v->audio) { silence(v); pp_audio_release(); }
-    if(v->encoder) esp_opus_enc_close(v->encoder);
-    if(v->decoder) esp_opus_dec_close(v->decoder);
     if(v->ws) { esp_transport_close(v->ws); esp_transport_destroy(v->ws); }
     if(v->ssl) esp_transport_destroy(v->ssl);
     ESP_LOGI(TAG,"Session closed: tx=%lu rx=%lu heap=%lu stack=%u",
         (unsigned long)v->tx_count,(unsigned long)v->rx_count,(unsigned long)esp_get_free_heap_size(),
         (unsigned)uxTaskGetStackHighWaterMark(NULL));
     memset(v,0,sizeof(*v)); free(v);
+    memory_log("session freed (worker stack still allocated)");
     atomic_store(&busy,false); vTaskDelete(NULL);
 }
 void pp_voice_tick(void)

@@ -23,6 +23,14 @@ root=Path(__file__).resolve().parent.parent
 version=re.search(r'#define PP_VERSION "([^"]+)"',(root/'main/passport_core.h').read_text()).group(1)
 assert 'set(PROJECT_VER "'+version+'")' in (root/'CMakeLists.txt').read_text()
 assert 'CONFIG_LV_BIN_DECODER_RAM_LOAD=y' not in config
+# These options are part of the C3 voice RAM contract. Check the generated
+# sdkconfig, so a dependency/default change cannot silently drop the fix.
+for option in ('CONFIG_MBEDTLS_DYNAMIC_BUFFER', 'CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA'):
+    assert option+'=y' in config, 'Missing voice memory setting: '+option
+for option in ('CONFIG_ESP_WIFI_IRAM_OPT', 'CONFIG_ESP_WIFI_RX_IRAM_OPT',
+               'CONFIG_MBEDTLS_SSL_KEEP_PEER_CERTIFICATE', 'CONFIG_MBEDTLS_SSL_RENEGOTIATION'):
+    assert option+'=y' not in config, 'Unexpected resident voice RAM cost: '+option
+assert 'CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=16384' in config, 'Preserve standard TLS receive record size'
 info = {
     'application': 'passport-platform', 'version': version,
     'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
