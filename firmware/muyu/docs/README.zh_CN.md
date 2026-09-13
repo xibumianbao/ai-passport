@@ -1,6 +1,6 @@
 # FoloToy AI Passport
 
-本项目编译[木鱼 MVP](../README.zh_CN.md)，按键操作、来源、构建产物和实机验收以应用说明为准。
+本项目编译[Passport 多应用底座](../README.zh_CN.md)，按键操作、来源、构建产物和实机验收以应用说明为准。
 
 [English](README.md) | 简体中文
 

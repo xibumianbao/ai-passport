@@ -1,50 +1,38 @@
-简体中文 | [English](README.md)
+[English](README.md) · **简体中文**
 
-# 木鱼：最小可用应用
+# Passport 多应用底座 0.3.0
 
-运行在 FoloToy AI Passport 上的离线木鱼应用。开机直接进入木鱼界面：按 **上、下或 OK** 任意一个键，播放短促木鱼声、展示木槌敲击动画，并让屏幕上的功德计数加一。
+面向 FoloToy AI Passport 的常驻底座。Applications 只放自定义应用，目前内置木鱼样例；设备状态和容量统一归入 Settings。正常重启恢复最近稳定启动的应用；首次或失败启动回到应用列表。
 
-只统计按下瞬间。按住不连续累加，单击、双击、长按识别事件不会重复计数。计数属于本次开机会话，重启清零；无需配网、网络、账号，不后台录音，也不保存计数。
+## 操作与设备配网
 
-## 构建与检查
+- 长按 OK 800 毫秒打开系统抽屉，菜单中长按返回。上下选择，短按 OK 松手确认。
+- Settings → Wi-Fi → Find and join network：选 2.4 GHz 网络，在设备小键盘输入密码，选 GO 连接。不需要手机，也不启动热点或网页配网门户。
+- 键盘分 abc / ABC / 123 / #+= 页，提供 SP 空格、DEL 删除、GO 提交、BACK 返回。支持全部可打印 ASCII 密码字符。上下选择字符，OK 输入；长按 OK 始终返回，不提交。
+- 最多显示 12 个去重网络；隐藏网络可手输名称，最长 32 字节；密码支持 8–63 个 ASCII 字符。开放网络免密码，WEP 和企业认证暂不支持。网络名称原样保留，中文等名称可能缺少显示字形。
+- 连接最多等待 25 秒，获得 IP 后才保存；输错不覆盖上一份已保存网络。重试输入保留但始终掩码显示，取消/成功即清理。保存一个网络供重启复用。ONLINE 表示获得 IP，不代表已额外检测互联网可达。
+- Wi-Fi 属于系统，应用切换保持连接并清理旧业务会话。BLE 仍为可开关的 Passport 不可连接广播，不支持配对或蓝牙音频。
 
-目标为 ESP32-C3、8 MB Flash、ESP-IDF **5.5.3**。保留官方 BSP、引脚和身份区分区布局。本地环境参考[环境安装说明](docs/development/engineering/environment-setup.zh_CN.md)，激活后在本目录运行：
+## 两种熄屏行为
 
-```sh
-./tools/validate.sh --static
-./tools/validate.sh --firmware
-```
+Screen-off mode 提供 Pause app（默认，兼容 0.2.0）和 Keep app running，用于应用页自动熄屏。Screen timeout 保持关闭/60/120/300 秒；停留系统菜单超时始终暂停应用。
 
-外层项目的 GitHub Actions 会运行两类检查、用实际 LVGL 界面代码渲染预览、验证 1,000 次快速更新，并上传核验后的固件、分段镜像、PNG 预览和合成 WAV。主机渲染不等于实机验证，产物名包含源码提交号。
+系统抽屉另有 Screen off (run)，立即恢复当前应用并关闭背光。短按继续交给应用，屏幕不亮；长按 OK 亮屏并打开菜单，清理应用前台会话。暂停模式下第一次完整按键只唤醒。实现为关闭背光、跳过应用界面渲染，不是深度休眠，也不代表已测出续航提升比例。未来语音适配器可在黑屏时保持音频/联网，本次没有新增 AI 对话应用。
 
-## 刷写与验收
+## 容量与新增应用
 
-刷写前确认自己设备的出厂恢复入口。设备身份和专属恢复参数需保密。使用支持数据传输的 USB-C 线，连接 USB Serial/JTAG 端口。
+Settings → Storage 显示物理 Flash、已分配/未分配空间、3 MiB 程序预算和可增长量、每个应用实际链接的 Flash/静态 RAM、应用存档条目与共享设置剩余条目。共享库只算一次，不将动态内存或未分配 Flash 冒充应用安装容量。
 
-合并固件为 `FoloToy-AI-Passport-full.bin`。本应用没有增加身份区之后的资源分区，检查脚本要求该 MVP 的合并文件必须在 `0x356000` 之前结束。对于已通过该检查的文件，可使用[官方网页刷写工具](https://ai-passport.folotoy.cn/tools/web-flasher/)，从 **0x0** 写入，不做全片擦除。不要选择 erase-all。在已配置 ESP-IDF 的工程中优先使用分段命令 `idf.py -p PORT flash`。不要把仅含应用的 `FoloToy-AI-Passport.bin` 当成合并固件。
+后续按[新应用接入指南](docs/app-integration.zh_CN.md)中的清单、脚手架、生命周期和构建链路开发。[社区兼容性评估](docs/community-compatibility.zh_CN.md)记录小智与尖塔远征的改造路径；其原版 BIN 会覆盖底座，不能作为插件安装。
 
-实际设备验收：
+## 构建与烧录
 
-1. 开机出现木鱼、零计数和电量，电量不可读时为 `--%`。
-2. 三个键分别敲十次，合计准确增加三十次并立即有视觉反馈。
-3. 按住一次只加一；快速双击加二。
-4. 连续敲一分钟，无崩溃、动画卡住或越来越长的音效积压。
-5. 扬声器播放短促木鱼声，检查失真与时延。
-6. 重启后计数清零，测试后核对恢复入口可用。
+ESP32-C3、8 MiB、无 PSRAM；ESP-IDF 5.5.3。继续使用历史目录 firmware/muyu 作为构建入口。执行 ./tools/validate.sh --static 和 ./tools/validate.sh --firmware。后者将清单内所有应用和底座一起编译，统计实际链接占用、重新链接容量数据，确认数字未变再合并。
 
-构建通过不能代替上述物理检查。音频初始化或播放失败时显示 `SOUND UNAVAILABLE`，仍可计数；按键初始化失败显示 `BUTTON ERROR`。
+只使用校验通过的 FoloToy-AI-Passport-full.bin，在[官方网页刷机工具](https://ai-passport.folotoy.cn/tools/web-flasher/)按偏移 0x0 烧录，禁止全片擦除。镜像必须结束于设置区 0x310000 之前，保留 24 KiB 设置和 cardid@0x356000。沿用 0.2.0 命名空间和 Wi-Fi 保存结构，新熄屏选项默认暂停；若旧版本最后打开的是 Device status，新版本回到应用列表。
 
-## 实现与资源
+构建、主机和实机结论分别记录，每次交付绑定源码 SHA、CI、镜像哈希与 capacity-report.json。见[实机验收清单](docs/platform-acceptance.zh_CN.md)；新固件在用户烧录验证前记为 Device tests NOT RUN。
 
-- `main/muyu_app.c`：BSP 初始化、任务通知与工作任务。按键回调不会等待绘图、I2C、存储或声音播放。
-- `main/muyu_ui.c`：固定 LVGL 对象和可重用的绝对位置动画。
-- `main/muyu_logic.c`：达到上限后保持不回绕的 32 位计数器，以及最多四路的混音器。
-- 合成木鱼声为 192 毫秒、16 kHz、16 位单声道，静态音色数组占 6,144 字节，每个输出块 320 字节。瞬时过多的敲击会替换旧声音尾部，计数仍覆盖收到的全部按下事件。默认音量 65%。
-- 固件 LVGL 内存池为 32 KiB，沿用官方 20 行绘制缓冲。主机预览因 64 位指针和整屏输出使用较大内存池，不用于测量设备内存、时延、续航或真实声音。
-- 不初始化 Wi-Fi，关闭蓝牙；每次敲击不写 NVS。电量读取沿用官方 CW2017 驱动。
+## 来源
 
-## 来源与许可
-
-完整官方基线来自 [`FoloToy/ai-passport@f75873f1`](https://github.com/FoloToy/ai-passport/tree/f75873f1aab24ac4c0ba9394c131669f66cce650)，保留 [MIT 许可](LICENSE)。原始演示源码仍可参考，本应用通过 CMake 编译木鱼入口，不编译演示菜单。
-
-共振衰减音色思路和 `font_muyu_22.c` 来自 [`demo/coloros-muyu@16df9944`](https://github.com/FoloToy/ai-passport/tree/16df9944d0f6a83b475e05acabbea73c8b49c3e1)。思源黑体 SC 字形子集附有 [SIL Open Font License](assets/fonts/SourceHanSans-OFL.txt)。木鱼图形用 LVGL 基本图形绘制，没有使用示例的背景图片。组件版本继续由 `dependencies.lock` 锁定。
+基于 FoloToy/ai-passport f75873f1aab24ac4c0ba9394c131669f66cce650 和本仓库已验证的木鱼/底座版本。保留 [MIT 许可](LICENSE)、上游 BSP 与字体 OFL 归属。键盘交互研究了 MIT leo-radio，本版独立实现；没有加入游戏/语音项目源码或凭据。

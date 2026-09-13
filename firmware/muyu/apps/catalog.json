@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "apps": [
+    {
+      "id": "muyu",
+      "name": "Muyu",
+      "version": "0.3.0",
+      "author": "AI Passport",
+      "component": "pp_app_muyu",
+      "symbol": "pp_muyu_module",
+      "namespace": "app_muyu"
+    }
+  ]
+}

@@ -9,7 +9,7 @@ def chunk(kind, data):
     return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
 
 
-for raw in Path('.').glob('muyu-*.rgb'):
+for raw in list(Path('.').glob('muyu-*.rgb')) + list(Path('.').glob('passport-*.rgb')):
     pixels = raw.read_bytes()
     assert len(pixels) == 240 * 320 * 3
     rows = b''.join(b'\0' + pixels[y * 720:(y + 1) * 720] for y in range(320))

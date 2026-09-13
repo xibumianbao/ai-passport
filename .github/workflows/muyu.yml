@@ -1,8 +1,8 @@
-name: Muyu firmware
+name: Passport platform firmware
 
 on:
   push:
-    branches: ["codex/muyu-mvp", "main"]
+    branches: ["codex/muyu-mvp", "codex/platform-base", "main"]
     paths: ["firmware/muyu/**", ".github/workflows/muyu.yml"]
   pull_request:
     paths: ["firmware/muyu/**", ".github/workflows/muyu.yml"]
@@ -55,7 +55,7 @@ jobs:
       - name: Upload checked firmware and Flash segments
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: muyu-firmware-${{ github.event.pull_request.head.sha || github.sha }}
+          name: passport-firmware-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             firmware/muyu/build/FoloToy-AI-Passport-full.bin
             firmware/muyu/build/FoloToy-AI-Passport.bin
@@ -65,6 +65,7 @@ jobs:
             firmware/muyu/build/sdkconfig
             firmware/muyu/build/SHA256SUMS
             firmware/muyu/build/build-info.json
+            firmware/muyu/build/capacity-report.json
           if-no-files-found: error
           retention-days: 30
       - name: Render the actual LVGL UI and exercise rapid presses
@@ -73,15 +74,17 @@ jobs:
           cmake -S tools/preview -B build/preview -DCMAKE_BUILD_TYPE=Debug
           cmake --build build/preview --parallel 4
           cd build
-          ./preview/muyu_preview
+          ./preview/passport_preview
+          ./preview/passport_catalog_test
           ./preview/muyu_audio muyu-knock.pcm
           python3 ../tools/preview/write_media.py
       - name: Upload UI previews and generated tone
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: muyu-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          name: passport-preview-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             firmware/muyu/build/muyu-*.png
             firmware/muyu/build/muyu-knock.wav
+            firmware/muyu/build/passport-*.png
           if-no-files-found: error
           retention-days: 30

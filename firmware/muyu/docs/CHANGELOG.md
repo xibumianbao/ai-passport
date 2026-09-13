@@ -4,6 +4,21 @@
 
 # Changelog
 
+## 0.3.0
+
+- Replace phone provisioning with an on-device Wi-Fi keyboard, bounded attempts and save-on-success.
+- Keep only custom apps in Applications; add system Device status, Storage and running screen-off mode.
+- Generate app registration from a catalog, provide a scaffold, and embed verified per-app linked capacity.
+- Document source-port requirements for Xiaozhi and Spire Expedition; preserve protected Flash layout.
+
+
+## 2026-09-13 - Passport platform 0.2.0
+
+- Add the persistent app shell, last-app recovery, shared Wi-Fi provisioning, BLE beacon control, shared settings and screen timeout.
+- Add generation-scoped cancellation, release-based OK input, and host/UI stress tests.
+- Reserve settings NVS at 0x310000; preserve the existing app limit and card identity.
+- Hardware acceptance is pending; see [the checklist](platform-acceptance.md).
+
 ## Unreleased
 
 - Added the standalone offline Muyu MVP: any button strikes once on press,
