@@ -275,7 +275,14 @@ static void build_view(pp_view_t *v,const pp_radio_state_t *radio,int battery)
     int total=rows(),first=s_selection>=6?s_selection-5:0;
     v->row_count=total-first>6?6:total-first; v->selected=s_selection-first;
     snprintf(v->app,sizeof(v->app),"%s",s_runtime.active<0?"PASSPORT":s_runtime.apps[s_runtime.active].name);
-    snprintf(v->status,sizeof(v->status),"Wi-Fi %s | BLE %s",wifi_label(radio->wifi),radio->ble_on?"ON":"OFF");
+    switch(radio->wifi) {
+    case PP_WIFI_OFF: v->wifi=PP_LINK_OFF; break;
+    case PP_WIFI_EMPTY: v->wifi=PP_LINK_UNCONFIGURED; break;
+    case PP_WIFI_CONNECTING: v->wifi=PP_LINK_BUSY; break;
+    case PP_WIFI_ONLINE: v->wifi=PP_LINK_ON; break;
+    default: v->wifi=PP_LINK_ERROR; break;
+    }
+    v->ble=radio->ble_error?PP_LINK_ERROR:radio->ble_on?PP_LINK_ON:PP_LINK_OFF;
     const char *wifi=wifi_label(radio->wifi);
     switch(s_page) {
     case APP: break;

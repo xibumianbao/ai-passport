@@ -1,6 +1,6 @@
 [简体中文](README.zh_CN.md) · **English**
 
-# Passport multi-application platform 0.4.0
+# Passport multi-application platform 0.4.1
 
 A persistent system shell for FoloToy AI Passport. Applications contains Muyu and the new Yaya Pet test application. Device status and capacity belong to Settings. The last stable application resumes after restart, with first/failed startup falling back to the application list.
 
@@ -21,6 +21,8 @@ from the exact delivered BIN; hardware acceptance remains pending.
 
 ## Controls and Wi-Fi
 
+- Wi-Fi and BLE icons share the top row with battery percentage. Dark means connected/advertising, gray off, amber not configured, pulsing amber connecting, and red error; Settings retains text details. The Wi-Fi icon indicates IP acquisition, not measured signal strength or internet reachability. BLE on means beacon advertising, not pairing.
+- The application area is now 240×265, recovering the former 30-pixel network row. Pet art stays at native pixel resolution; no additional image resources are needed.
 - Hold OK for 800 ms to open the system drawer; hold again to go back. UP/DOWN selects; short OK confirms on release.
 - Settings → Wi-Fi → Find and join network: select a 2.4 GHz network, type the password on the device keyboard, select GO. No phone, SoftAP or web portal is required or started.
 - Keyboard pages: abc / ABC / 123 / #+=, with SP, DEL, GO and BACK. All printable ASCII password characters are available. UP/DOWN moves between keys; OK types. Hold OK always cancels/back, never submits.

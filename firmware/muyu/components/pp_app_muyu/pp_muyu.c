@@ -6,6 +6,7 @@
 LV_FONT_DECLARE(font_muyu_22);
 static uint32_t s_count;
 static bool s_strike;
+static int s_wood_y;
 static lv_obj_t *s_value, *s_wood, *s_note;
 static lv_obj_t *box(lv_obj_t *parent,int x,int y,int w,int h,uint32_t color,int radius)
 {
@@ -39,10 +40,11 @@ static void create_ui(lv_obj_t *parent)
     lv_label_set_text(label(parent,16,16,52,&font_muyu_22),"功德");
     s_value=label(parent,70,17,154,&lv_font_montserrat_20);
     lv_obj_set_style_text_align(s_value,LV_TEXT_ALIGN_RIGHT,0);
-    s_wood=box(parent,47,82,146,77,0xc58c50,36);
+    int extra=lv_obj_get_height(parent)-235; s_wood_y=82+extra/2;
+    s_wood=box(parent,47,s_wood_y,146,77,0xc58c50,36);
     lv_obj_set_style_border_width(s_wood,3,0); lv_obj_set_style_border_color(s_wood,lv_color_hex(0x4b3527),0);
     box(s_wood,13,8,110,12,0xe9ba7c,6); box(s_wood,24,36,85,5,0x4b3527,2); box(s_wood,105,33,10,10,0x4b3527,5);
-    s_note=label(parent,16,178,208,&lv_font_montserrat_14);
+    s_note=label(parent,16,178+extra,208,&lv_font_montserrat_14);
 }
 static void render_ui(void)
 {
@@ -51,7 +53,7 @@ static void render_ui(void)
     if(s_strike) {
         s_strike=false; lv_anim_delete(s_wood,bounce);
         lv_anim_t a; lv_anim_init(&a); lv_anim_set_var(&a,s_wood); lv_anim_set_exec_cb(&a,bounce);
-        lv_anim_set_values(&a,82,88); lv_anim_set_duration(&a,50); lv_anim_set_playback_duration(&a,100); lv_anim_start(&a);
+        lv_anim_set_values(&a,s_wood_y,s_wood_y+6); lv_anim_set_duration(&a,50); lv_anim_set_playback_duration(&a,100); lv_anim_start(&a);
     }
 }
 const pp_app_module_t pp_muyu_module={.start=start,.stop=stop,.focus=focus,.key=key,.create_ui=create_ui,.render_ui=render_ui};

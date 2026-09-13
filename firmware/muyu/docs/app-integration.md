@@ -12,12 +12,18 @@ and never touch UI in this callback. Use designated module initializers so futur
 optional callbacks default to null. [Voice integration](voice-integration.md)
 records the pet/Xiaozhi and independent IDA direction.
 
+Since 0.4.1, Wi-Fi/BLE icons share the 30-pixel top bar with battery. The app
+container is 240×265 at screen y=30; the footer starts at y=295. Query the parent's
+size and anchor bottom controls to it. Keep native-resolution artwork rather
+than adding larger images to fill the recovered 30 pixels. Detailed radio text
+belongs in Settings, not an app-owned duplicate status row.
+
 ## Repeatable development path
 
 1. Read the current platform guide, `apps/catalog.json`, `passport_apps.h`, `passport_core.h` and the Muyu component. Start from the latest tested platform commit, not the old standalone Muyu branch. Preserve unrelated work; use a `codex/*` branch.
 2. From `firmware/muyu`, run `python tools/new_app.py my_app --name "My App"`. It creates `components/pp_app_my_app/` and updates the catalog, refusing existing names. The generated counter is an integration scaffold, not a production app. Up to 16 apps are supported.
 3. Implement the module callbacks. The catalog owns ID, display name, version, author, component, exported module symbol and NVS namespace. CMake generates the runtime registry from this same catalog. No edits to the shell's application menu are needed.
-4. `start` initializes lightweight app state; `focus(true)` acquires resources after activation; `key` receives semantic short presses. `focus(false)` suspends work; `stop` must cancel and join workers before UI destruction. The shell reserves long OK. It supplies a 240×235 content container below the status bar; UI creation/rendering run under its LVGL lock. Apps do not initialize the display, buttons, network stack or codec again.
+4. `start` initializes lightweight app state; `focus(true)` acquires resources after activation; `key` receives semantic short presses. `focus(false)` suspends work; `stop` must cancel and join workers before UI destruction. The shell reserves long OK. It supplies a 240×265 content container below the status bar; UI creation/rendering run under its LVGL lock. Apps do not initialize the display, buttons, network stack or codec again.
 5. Use `pp_app_runtime()` only on the control task. Register bounded, idempotent cancellation callbacks with `pp_resource_acquire`; old generation results must be discarded. Network workers return bounded messages to the control task. A stop flag alone is not a joined producer. The current audio service supports the Muyu knock; microphone/streaming adapters still need implementation and resource ownership tests.
 6. Save into the `settings` partition using the catalog's `app_*` namespace. Add versioned serialization and migration tests. Never erase shared NVS or the whole Flash. Do not persist pointers, plaintext provider keys or logs containing user credentials.
 7. Run focused app tests, then `./tools/validate.sh --static` and `./tools/validate.sh --firmware` in ESP-IDF 5.5.3. Review the final `capacity-report.json`, actual LVGL previews and app switching/cancellation tests. Test both directions of switching, Wi-Fi reuse, dark operation, wake, restart and save migration on hardware.

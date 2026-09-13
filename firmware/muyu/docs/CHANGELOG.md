@@ -4,6 +4,13 @@
 
 # Changelog
 
+## 0.4.1 - Compact system status bar
+
+- Place Wi-Fi and BLE icons beside the battery, replacing the separate network-text row.
+- Expand the application container from 240×235 to 240×265; adapt pet and Muyu spacing without enlarging image assets.
+- Keep detailed radio states in Settings and preview off, online, connecting, unconfigured and error states, including long names and 100% battery.
+- Preserve pet save format, game rules, device wiring and protected Flash partitions.
+
 ## 0.4.0 - Pet 0.1.0 test build
 
 - Add a low-interaction pixel pet: autonomous daily life, feed/play/rest, levels and one evolution.

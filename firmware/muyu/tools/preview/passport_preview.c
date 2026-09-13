@@ -47,8 +47,18 @@ int main(void)
     pp_keyboard_t kb; pp_keyboard_init(&kb,63); pp_ui_create();
     pp_view_t v={.buttons_ok=true,.battery=99,.module=&pp_muyu_module};
     for(int i=0;i<12;++i) pp_muyu_module.key(NULL,PP_OK);
-    strcpy(v.app,"Muyu"); strcpy(v.status,"Wi-Fi ONLINE | BLE OFF");
+    strcpy(v.app,"Muyu"); v.wifi=PP_LINK_ON;
     pp_ui_render(&v); tick(200); snapshot("passport-muyu.rgb");
+    /* Max-length title and three-digit battery must fit beside both icons. */
+    strcpy(v.app,"Long application title"); v.battery=100; v.ble=PP_LINK_ON;
+    pp_ui_render(&v); tick(200); snapshot("passport-status-online.rgb");
+    v.wifi=PP_LINK_BUSY; v.ble=PP_LINK_ERROR;
+    pp_ui_render(&v); tick(200); snapshot("passport-status-connecting.rgb");
+    v.wifi=PP_LINK_UNCONFIGURED; v.ble=PP_LINK_OFF; v.battery=-1;
+    pp_ui_render(&v); tick(200); snapshot("passport-status-unconfigured.rgb");
+    v.wifi=PP_LINK_ERROR;
+    pp_ui_render(&v); tick(200); snapshot("passport-status-error.rgb");
+    strcpy(v.app,"Muyu"); v.battery=99; v.wifi=PP_LINK_ON;
     v.menu=true; v.row_count=5; v.selected=1; strcpy(v.title,"SYSTEM");
     const char *root[]={"Resume app","Applications","Screen off (run)","Settings","About"};
     for(int i=0;i<5;++i) strcpy(v.rows[i],root[i]);
@@ -81,11 +91,12 @@ int main(void)
         v.menu=i%2; v.keyboard=i%3==0; v.keyboard_page=i%4;
         v.keyboard_selected=i%pp_keyboard_count(v.keyboard_page);
         v.module=i%7 ? &pp_muyu_module : NULL;
+        v.wifi=(pp_link_state_t)(i%5); v.ble=(pp_link_state_t)(i%3);
         pp_ui_render(&v); tick(20);
     }
     tick(1000); lv_mem_monitor(&after); assert(after.free_size+512>=before.free_size);
     audio_ok=false; v.menu=false; v.keyboard=false; v.module=&pp_muyu_module; v.battery=-1;
-    strcpy(v.status,"Wi-Fi OFF | BLE OFF");
+    v.wifi=PP_LINK_OFF; v.ble=PP_LINK_OFF;
     pp_ui_render(&v); tick(200); snapshot("passport-error.rgb");
     printf("Passport UI: PASS (5000 transitions; 32 KiB pool; free %zu -> %zu bytes)\n",(size_t)before.free_size,(size_t)after.free_size);
     return 0;

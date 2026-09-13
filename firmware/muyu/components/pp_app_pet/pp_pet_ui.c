@@ -40,7 +40,8 @@ static void deleted(lv_event_t *e)
 }
 void pp_pet_ui_create(lv_obj_t *parent)
 {
-    lv_obj_t *root=box(parent,0,0,240,235,0xf5ebd6);
+    int height=lv_obj_get_height(parent),extra=height-235;
+    lv_obj_t *root=box(parent,0,0,240,height,0xf5ebd6);
     lv_obj_add_event_cb(root,deleted,LV_EVENT_DELETE,NULL);
     s_title=label(root,9,1,98,0x283f45); s_coins=label(root,112,1,63,0x936344);
     /* Bowl and energy marks remain legible without reading the numbers. */
@@ -48,13 +49,14 @@ void pp_pet_ui_create(lv_obj_t *parent)
     box(root,178,15,3,7,0xe7ac67); box(root,176,17,6,3,0xe7ac67);
     box(root,185,7,46,4,0xdacdb5); s_food=box(root,185,7,23,4,0x50877a);
     box(root,185,17,46,4,0xdacdb5); s_energy=box(root,185,17,32,4,0xb78a68);
-    lv_obj_t *scene=lv_image_create(root); lv_image_set_src(scene,&room); lv_obj_set_pos(scene,0,25);
+    /* Center the original pixel scene in the extra room; never stretch a bitmap. */
+    lv_obj_t *scene=lv_image_create(root); lv_image_set_src(scene,&room); lv_obj_set_pos(scene,0,25+extra/2);
     pp_pixel_buffer_t pixels; pp_pixel_buffer_init(&pixels,sprite_pixels,96,88);
-    s_pet=lv_image_create(root); lv_image_set_src(s_pet,&sprite); lv_obj_set_pos(s_pet,72,77);
-    s_message=label(root,8,177,224,0x506f66); lv_obj_set_style_text_align(s_message,LV_TEXT_ALIGN_CENTER,0);
-    box(root,12,198,216,3,0xdacdb5); s_xp=box(root,12,198,1,3,0x50877a);
+    s_pet=lv_image_create(root); lv_image_set_src(s_pet,&sprite); lv_obj_set_pos(s_pet,72,77+extra/2);
+    s_message=label(root,8,height-58,224,0x506f66); lv_obj_set_style_text_align(s_message,LV_TEXT_ALIGN_CENTER,0);
+    box(root,12,height-37,216,3,0xdacdb5); s_xp=box(root,12,height-37,1,3,0x50877a);
     for(unsigned i=0;i<3;++i) {
-        s_buttons[i]=box(root,6+(int)i*78,207,72,25,0xe7dcc4);
+        s_buttons[i]=box(root,6+(int)i*78,height-28,72,25,0xe7dcc4);
         s_labels[i]=label(s_buttons[i],1,3,70,0x283f45);
         lv_obj_set_style_text_align(s_labels[i],LV_TEXT_ALIGN_CENTER,0);
     }

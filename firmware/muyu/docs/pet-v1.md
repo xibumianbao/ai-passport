@@ -4,6 +4,10 @@
 
 Platform 0.4.0 adds the first pet application, version 0.1.0. Open **Applications → Yaya Pet**. Existing Muyu and system settings remain available. This is a device-test build; successful automated tests do not constitute hardware acceptance.
 
+Platform 0.4.1 moves Wi-Fi/BLE to icons beside the battery and expands the app area
+to 240×265. The scene is centered, bottom actions follow the container height,
+and the original small artwork, game rules and save format remain unchanged.
+
 ## Play with few buttons
 
 Yaya lives in a warm pixel room, looks around, reads, helps with a plant and walks. One minute of visible, focused daily activity gives 4 star coins and 3 XP automatically. Eating, playing, resting, growth celebrations and time outside the foreground pause that minute. Low fullness pauses earning; low energy starts a nap. There is no death, level loss, offline decay, daily streak or login requirement.

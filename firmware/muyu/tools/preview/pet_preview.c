@@ -51,6 +51,13 @@ static void snapshot(const char *name)
     assert(!fclose(f));
 }
 static pp_pet_save_t read_save(void) { pp_pet_save_t s; assert(pp_pet_decode(&s,durable,sizeof(durable))); return s; }
+static void checked_create_ui(lv_obj_t *parent)
+{
+    /* The shell must expose real geometry before app creation, not after flush. */
+    assert(lv_obj_get_width(parent)==240 && lv_obj_get_height(parent)==265);
+    assert(lv_obj_get_y(parent)==30);
+    pp_pet_module.create_ui(parent);
+}
 static void visible_time(unsigned ms)
 {
     while(ms) { unsigned delta=ms>20?20:ms; pp_pet_module.tick(NULL,delta,true); ms-=delta; }
@@ -97,8 +104,9 @@ int main(void)
     lv_display_set_color_format(d,LV_COLOR_FORMAT_RGB565);
     lv_display_set_buffers(d,draw_buffer,NULL,sizeof(draw_buffer),LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(d,flush); pp_ui_create();
-    pp_view_t v={.battery=99,.buttons_ok=true,.module=&pp_pet_module};
-    strcpy(v.app,"Yaya Pet"); strcpy(v.status,"Wi-Fi OFF | BLE OFF"); pp_ui_render(&v);
+    pp_app_module_t checked=pp_pet_module; checked.create_ui=checked_create_ui;
+    pp_view_t v={.battery=99,.buttons_ok=true,.module=&checked};
+    strcpy(v.app,"Yaya Pet"); pp_ui_render(&v);
     pp_pet_t p; pp_pet_save_t s; pp_pet_defaults(&s,987); pp_pet_init(&p,&s,pp_pet_store_write,NULL);
     pp_pet_ui_render(&p,AVATAR_IDLE); lv_tick(200); snapshot("passport-pet-home.rgb");
     p.clock_ms=11000; pp_pet_ui_render(&p,AVATAR_IDLE); lv_tick(200); snapshot("passport-pet-reading.rgb");
