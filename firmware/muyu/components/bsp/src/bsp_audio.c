@@ -17,6 +17,7 @@ static i2s_chan_handle_t      s_tx, s_rx;
 static uint32_t s_hz;
 static uint8_t  s_bits, s_ch;
 static bool     s_opened;
+static bool     s_suspended;
 
 static esp_err_t i2s_full_duplex_init(void) {
     i2s_chan_config_t chan = {
@@ -125,6 +126,11 @@ esp_err_t bsp_audio_init(void) {
 esp_err_t bsp_audio_set_format(uint32_t hz, uint8_t bits, uint8_t ch) {
     if (!s_dev) return ESP_ERR_INVALID_STATE;
     if (s_opened && s_hz == hz && s_bits == bits && s_ch == ch) return ESP_OK;   // 同格式复用
+    if (s_suspended) {
+        if (s_tx) i2s_channel_enable(s_tx);
+        if (s_rx) i2s_channel_enable(s_rx);
+        s_suspended = false;
+    }
 
     if (s_opened) {
         esp_codec_dev_close(s_dev);
@@ -163,6 +169,14 @@ esp_err_t bsp_audio_write(const void *pcm, size_t bytes) {
 esp_err_t bsp_audio_read(void *pcm, size_t bytes) {
     if (!s_dev) return ESP_ERR_INVALID_STATE;
     return esp_codec_dev_read(s_dev, pcm, bytes) == 0 ? ESP_OK : ESP_FAIL;
+}
+
+esp_err_t bsp_audio_suspend(void) {
+    if (!s_dev || !s_opened) return ESP_OK;
+    if (esp_codec_dev_close(s_dev) != 0) return ESP_FAIL;
+    s_opened = false;
+    s_suspended = true;
+    return ESP_OK;
 }
 
 void bsp_audio_set_volume(uint8_t percent) {

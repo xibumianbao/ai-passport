@@ -2,7 +2,6 @@
 #include "passport_ui.h"
 #include "passport_keyboard.h"
 #include "passport_audio.h"
-#include "capacity_preview.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -47,18 +46,28 @@ int main(void)
     pp_keyboard_t kb; pp_keyboard_init(&kb,63); pp_ui_create();
     pp_view_t v={.buttons_ok=true,.battery=99,.module=&pp_muyu_module};
     for(int i=0;i<12;++i) pp_muyu_module.key(NULL,PP_OK);
-    strcpy(v.app,"Muyu"); strcpy(v.status,"Wi-Fi ONLINE | BLE OFF");
+    strcpy(v.app,"Muyu"); v.wifi=PP_LINK_ON;
     pp_ui_render(&v); tick(200); snapshot("passport-muyu.rgb");
-    v.menu=true; v.row_count=5; v.selected=1; strcpy(v.title,"SYSTEM");
-    const char *root[]={"Resume app","Applications","Screen off (run)","Settings","About"};
-    for(int i=0;i<5;++i) strcpy(v.rows[i],root[i]);
+    /* Max-length title and three-digit battery must fit beside the Wi-Fi icon. */
+    strcpy(v.app,"Long application title"); v.battery=100;
+    pp_ui_render(&v); tick(200); snapshot("passport-status-online.rgb");
+    v.wifi=PP_LINK_BUSY;
+    pp_ui_render(&v); tick(200); snapshot("passport-status-connecting.rgb");
+    v.wifi=PP_LINK_UNCONFIGURED; v.battery=-1;
+    pp_ui_render(&v); tick(200); snapshot("passport-status-unconfigured.rgb");
+    v.wifi=PP_LINK_ERROR;
+    pp_ui_render(&v); tick(200); snapshot("passport-status-error.rgb");
+    strcpy(v.app,"Muyu"); v.battery=99; v.wifi=PP_LINK_ON;
+    v.menu=true; v.row_count=4; v.selected=1; strcpy(v.title,"SYSTEM");
+    const char *root[]={"Resume app","Applications","Screen off (run)","Settings"};
+    for(int i=0;i<4;++i) strcpy(v.rows[i],root[i]);
     pp_ui_render(&v); tick(200); snapshot("passport-menu.rgb");
-    v.row_count=6; v.selected=5; strcpy(v.title,"SETTINGS");
-    const char *rows[]={"Sound","Brightness","Screen timeout","Screen-off mode","Device status","Storage"};
-    for(int i=0;i<6;++i) strcpy(v.rows[i],rows[i]);
+    v.row_count=5; v.selected=4; strcpy(v.title,"SETTINGS");
+    const char *rows[]={"Wi-Fi","Sound","Brightness","Screen timeout","Screen-off mode"};
+    for(int i=0;i<5;++i) strcpy(v.rows[i],rows[i]);
     pp_ui_render(&v); tick(200); snapshot("passport-settings.rgb");
-    v.row_count=1; v.selected=0; strcpy(v.title,"APPLICATIONS"); strcpy(v.rows[0],"* Muyu");
-    strcpy(v.detail,"Your custom apps.\nLast app opens on boot.");
+    v.row_count=2; v.selected=0; strcpy(v.title,"APPLICATIONS"); strcpy(v.rows[0],"* Yaya Chat"); strcpy(v.rows[1],"Yaya Pet");
+    v.detail[0]=0;
     pp_ui_render(&v); tick(200); snapshot("passport-apps.rgb");
     v.keyboard=true; v.keyboard_secret=true; v.keyboard_length=12; v.keyboard_page=0; v.keyboard_selected=6;
     strcpy(v.title,"WI-FI PASSWORD"); strcpy(v.input_name,"Example 2.4 GHz");
@@ -70,22 +79,17 @@ int main(void)
     strcpy(v.rows[0],"Pause app"); strcpy(v.rows[1],"* Keep app running");
     strcpy(v.detail,"Keep running: voice,\nnetwork and keys stay.\nHold OK: light + menu.\nNot deep sleep.");
     pp_ui_render(&v); tick(200); snapshot("passport-screen-mode.rgb");
-    v.row_count=0; strcpy(v.title,"FLASH / PROGRAM");
-    strcpy(v.detail,PP_PREVIEW_CAPACITY);
-    pp_ui_render(&v); tick(200); snapshot("passport-storage.rgb");
-    strcpy(v.title,"DEVICE STATUS");
-    strcpy(v.detail,"Wi-Fi: ONLINE\nIP: 192.0.2.10\nBLE: OFF\nVolume: 65%\nBrightness: 80%\nBattery: 99%\nPassport 0.3.0\n\nOK: back");
-    pp_ui_render(&v); tick(200); snapshot("passport-device.rgb");
     lv_mem_monitor_t before,after; lv_mem_monitor(&before);
     for(unsigned i=0;i<5000;++i) {
         v.menu=i%2; v.keyboard=i%3==0; v.keyboard_page=i%4;
         v.keyboard_selected=i%pp_keyboard_count(v.keyboard_page);
         v.module=i%7 ? &pp_muyu_module : NULL;
+        v.wifi=(pp_link_state_t)(i%5);
         pp_ui_render(&v); tick(20);
     }
     tick(1000); lv_mem_monitor(&after); assert(after.free_size+512>=before.free_size);
     audio_ok=false; v.menu=false; v.keyboard=false; v.module=&pp_muyu_module; v.battery=-1;
-    strcpy(v.status,"Wi-Fi OFF | BLE OFF");
+    v.wifi=PP_LINK_OFF; v.buttons_ok=false;
     pp_ui_render(&v); tick(200); snapshot("passport-error.rgb");
     printf("Passport UI: PASS (5000 transitions; 32 KiB pool; free %zu -> %zu bytes)\n",(size_t)before.free_size,(size_t)after.free_size);
     return 0;

@@ -3,8 +3,8 @@
 #include "lvgl.h"
 #include <stdio.h>
 #include <string.h>
-static lv_obj_t *s_app,*s_battery,*s_status,*s_footer,*s_content,*s_drawer,*s_title,*s_rows[6],*s_labels[6],*s_note;
-static lv_obj_t *s_keyboard,*s_kb_title,*s_kb_name,*s_kb_value,*s_kb_matrix,*s_kb_note;
+static lv_obj_t *s_app,*s_battery,*s_wifi,*s_content,*s_drawer,*s_title,*s_rows[6],*s_labels[6],*s_note;
+static lv_obj_t *s_keyboard,*s_kb_title,*s_kb_name,*s_kb_value,*s_kb_matrix,*s_kb_note,*s_kb_help;
 static const pp_app_module_t *s_module;
 static const char *s_keymap[PP_KB_MAX_KEYS+8];
 static bool s_menu;
@@ -21,18 +21,27 @@ static lv_obj_t *text(lv_obj_t *parent,int x,int y,int w,const lv_font_t *font,u
     lv_obj_set_style_text_font(o,font,0); lv_obj_set_style_text_color(o,lv_color_hex(color),0); lv_label_set_text(o,""); return o;
 }
 static void drawer_x(void *obj,int32_t x) { lv_obj_set_x(obj,x); }
+static void link_icon(lv_obj_t *icon,pp_link_state_t state)
+{
+    uint32_t color=state==PP_LINK_ON?0x151515:state==PP_LINK_ERROR?0xb43c32:
+        state==PP_LINK_BUSY || state==PP_LINK_UNCONFIGURED?0xa26d20:0xaaa7a0;
+    lv_obj_set_style_text_color(icon,lv_color_hex(color),0);
+    /* The existing render cadence drives connecting feedback; no extra timer. */
+    lv_obj_set_style_text_opa(icon,state==PP_LINK_BUSY && (lv_tick_get()/500)%2 ? LV_OPA_40:LV_OPA_COVER,0);
+}
 void pp_ui_create(void)
 {
     lv_obj_t *screen=box(NULL,0,0,240,320,0xf4f3ef,0);
-    s_app=text(screen,10,8,145,&lv_font_montserrat_14,0x151515);
+    s_app=text(screen,10,8,154,&lv_font_montserrat_14,0x151515);
+    lv_obj_set_height(s_app,20);
     lv_label_set_long_mode(s_app,LV_LABEL_LONG_DOT);
-    s_battery=text(screen,167,8,63,&lv_font_montserrat_14,0x151515);
+    s_wifi=text(screen,168,8,18,&lv_font_montserrat_14,0x151515);
+    lv_label_set_text(s_wifi,LV_SYMBOL_WIFI);
+    s_battery=text(screen,190,8,40,&lv_font_montserrat_14,0x151515);
     lv_obj_set_style_text_align(s_battery,LV_TEXT_ALIGN_RIGHT,0);
     box(screen,0,29,240,1,0x151515,0);
-    s_status=text(screen,12,41,216,&lv_font_montserrat_14,0x555555);
-    lv_label_set_long_mode(s_status,LV_LABEL_LONG_DOT);
-    s_content=box(screen,0,60,240,235,0xf4f3ef,0);
-    s_drawer=box(screen,28,35,212,255,0x151515,0);
+    s_content=box(screen,0,30,240,290,0xf4f3ef,0);
+    s_drawer=box(screen,28,35,212,280,0x151515,0);
     s_title=text(s_drawer,14,12,184,&lv_font_montserrat_20,0xffffff);
     lv_label_set_long_mode(s_title,LV_LABEL_LONG_DOT);
     for(int i=0;i<6;++i) {
@@ -41,7 +50,7 @@ void pp_ui_create(void)
         lv_label_set_long_mode(s_labels[i],LV_LABEL_LONG_DOT);
     }
     s_note=text(s_drawer,14,205,184,&lv_font_montserrat_14,0xc8c8c8);
-    s_keyboard=box(screen,0,35,240,255,0x151515,0);
+    s_keyboard=box(screen,0,35,240,280,0x151515,0);
     s_kb_title=text(s_keyboard,10,6,220,&lv_font_montserrat_20,0xffffff);
     s_kb_name=text(s_keyboard,10,32,220,&lv_font_montserrat_14,0xc8c8c8);
     lv_label_set_long_mode(s_kb_name,LV_LABEL_LONG_DOT);
@@ -58,19 +67,23 @@ void pp_ui_create(void)
     lv_obj_set_style_bg_color(s_kb_matrix,lv_color_hex(0xf4f3ef),LV_PART_ITEMS|LV_STATE_CHECKED);
     lv_obj_set_style_text_color(s_kb_matrix,lv_color_hex(0x151515),LV_PART_ITEMS|LV_STATE_CHECKED);
     s_kb_note=text(s_keyboard,10,235,220,&lv_font_montserrat_14,0xc8c8c8);
-    box(screen,0,295,240,1,0x151515,0);
-    s_footer=text(screen,10,302,225,&lv_font_montserrat_14,0x555555);
+    s_kb_help=text(s_keyboard,10,258,220,&lv_font_montserrat_14,0xc8c8c8);
     lv_obj_add_flag(s_drawer,LV_OBJ_FLAG_HIDDEN); lv_obj_add_flag(s_keyboard,LV_OBJ_FLAG_HIDDEN);
     lv_screen_load(screen);
 }
 void pp_ui_render(const pp_view_t *v)
 {
-    lv_label_set_text(s_app,v->app);
+    /* Keep hardware failure visible without reserving an application footer. */
+    lv_label_set_text(s_app,v->buttons_ok?v->app:"BUTTON ERROR");
+    lv_obj_set_style_text_color(s_app,lv_color_hex(v->buttons_ok?0x151515:0xb43c32),0);
     if(v->battery<0) lv_label_set_text(s_battery,"--%");
     else lv_label_set_text_fmt(s_battery,"%d%%",v->battery);
-    lv_label_set_text(s_status,v->status);
+    link_icon(s_wifi,v->wifi);
     if(v->module!=s_module) {
         lv_obj_clean(s_content); s_module=v->module;
+        lv_obj_set_style_bg_color(s_content,lv_color_hex(0xf4f3ef),0);
+        /* create_ui may read parent geometry before the first display refresh. */
+        lv_obj_update_layout(s_content);
         if(s_module && s_module->create_ui) s_module->create_ui(s_content);
     }
     if(!v->menu && s_module && s_module->render_ui) s_module->render_ui();
@@ -94,6 +107,7 @@ void pp_ui_render(const pp_view_t *v)
         lv_buttonmatrix_clear_button_ctrl_all(s_kb_matrix,LV_BUTTONMATRIX_CTRL_CHECKED);
         lv_buttonmatrix_set_button_ctrl(s_kb_matrix,v->keyboard_selected,LV_BUTTONMATRIX_CTRL_CHECKED);
         lv_label_set_text(s_kb_note,v->detail);
+        lv_label_set_text(s_kb_help,v->footer);
     } else {
         lv_obj_add_flag(s_keyboard,LV_OBJ_FLAG_HIDDEN);
         if(v->menu) {
@@ -109,7 +123,7 @@ void pp_ui_render(const pp_view_t *v)
                 lv_label_set_text(s_labels[i],v->rows[i]);
             }
             int top=44+v->row_count*31+3;
-            lv_obj_set_y(s_note,top); lv_obj_set_height(s_note,250-top);
+            lv_obj_set_y(s_note,top); lv_obj_set_height(s_note,275-top);
             lv_label_set_text(s_note,v->detail);
             if(!s_menu) {
                 lv_anim_t a; lv_anim_init(&a); lv_anim_set_var(&a,s_drawer); lv_anim_set_exec_cb(&a,drawer_x);
@@ -117,6 +131,5 @@ void pp_ui_render(const pp_view_t *v)
             }
         } else { lv_anim_delete(s_drawer,drawer_x); lv_obj_add_flag(s_drawer,LV_OBJ_FLAG_HIDDEN); }
     }
-    lv_label_set_text(s_footer,!v->buttons_ok?"BUTTON ERROR":v->footer[0]?v->footer:v->menu?"OK: select   HOLD OK: back":"HOLD OK: system menu");
     s_menu=v->menu;
 }

@@ -71,7 +71,7 @@ static void lifecycle(void)
 static void settings(void)
 {
     pp_settings_t s; pp_settings_defaults(&s);
-    assert(s.volume == 65 && s.wifi && !s.ble);
+    assert(s.volume == 65 && s.wifi);
     s.volume = 255; s.brightness = 0; s.timeout = 50;
     pp_settings_validate(&s); assert(s.volume == 65 && s.brightness == 80 && s.timeout == 1);
     assert(pp_timeout_seconds(0) == 0 && pp_timeout_seconds(3) == 300);

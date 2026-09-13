@@ -5,12 +5,10 @@
 #include "passport_catalog.h"
 #include "passport_keyboard.h"
 #include "passport_screen.h"
-#include "passport_storage.h"
 #include "bsp_i2c.h"
 #include "bsp_display.h"
 #include "bsp_button.h"
 #include "bsp_battery.h"
-#include "esp_app_desc.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_timer.h"
@@ -23,9 +21,8 @@
 #include <stdio.h>
 #include <string.h>
 
-typedef enum { APP, ROOT, APPS, SETTINGS, WIFI, BLE, SOUND, DISPLAY, TIMEOUT, SCREEN_MODE,
-               ABOUT, DEVICE, DIAGNOSTICS, SCAN, PASSWORD, SSID, NETWORK_TYPE, CONNECTING, FORGET,
-               CAPACITY, APP_USAGE, APP_DETAIL, FLASH_LAYOUT, NVS_USAGE } page_t;
+typedef enum { APP, ROOT, APPS, SETTINGS, WIFI, SOUND, DISPLAY, TIMEOUT, SCREEN_MODE,
+               SCAN, PASSWORD, SSID, NETWORK_TYPE, CONNECTING, FORGET } page_t;
 typedef struct { unsigned key; pp_edge_t edge; } input_event_t;
 static const char *TAG="passport";
 static QueueHandle_t s_input;
@@ -35,7 +32,7 @@ static pp_runtime_t s_runtime;
 static pp_input_t s_input_state;
 static pp_settings_t s_settings;
 static page_t s_page=APPS;
-static int s_selection,s_usage_index,s_network_count;
+static int s_selection,s_network_count;
 static pp_network_t s_networks[PP_WIFI_NETWORKS];
 static pp_keyboard_t s_keyboard;
 static char s_join_ssid[33];
@@ -69,7 +66,6 @@ static void load_settings(char last[24], bool *safe)
         nvs_get_u8(s_nvs, "screen_mode", &s_settings.screen_mode);
         uint8_t v;
         if (nvs_get_u8(s_nvs, "wifi", &v) == ESP_OK) s_settings.wifi = v != 0;
-        if (nvs_get_u8(s_nvs, "ble", &v) == ESP_OK) s_settings.ble = v != 0;
         size_t len = 24; nvs_get_str(s_nvs, "last_app", last, &len);
     }
     pp_settings_validate(&s_settings);
@@ -89,7 +85,6 @@ static void save_settings(void)
     if (e == ESP_OK) e = nvs_set_u8(s_nvs, "timeout", s_settings.timeout);
     if (e == ESP_OK) e = nvs_set_u8(s_nvs, "screen_mode", s_settings.screen_mode);
     if (e == ESP_OK) e = nvs_set_u8(s_nvs, "wifi", s_settings.wifi);
-    if (e == ESP_OK) e = nvs_set_u8(s_nvs, "ble", s_settings.ble);
     if (e == ESP_OK) e = nvs_commit(s_nvs);
     storage_result(e);
 }
@@ -124,13 +119,12 @@ static void on_button(bsp_btn_t key,bsp_btn_ev_t event,void *ctx)
 static int rows(void)
 {
     switch(s_page) {
-    case ROOT: return 5;
-    case APPS: case APP_USAGE: return PP_APP_COUNT;
-    case SETTINGS: return 8;
+    case ROOT: return 4;
+    case APPS: return PP_APP_COUNT;
+    case SETTINGS: return 5;
     case WIFI: return 3;
-    case BLE: case FORGET: case SCREEN_MODE: case NETWORK_TYPE: return 2;
+    case FORGET: case SCREEN_MODE: case NETWORK_TYPE: return 2;
     case SCAN: return s_scan_waiting ? 0 : s_network_count+2;
-    case CAPACITY: return 4;
     default: return 0;
     }
 }
@@ -166,13 +160,11 @@ static void back(void)
     case ROOT:
         if(s_runtime.active>=0) { pp_resume(&s_runtime); change_page(APP); } else change_page(APPS);
         break;
-    case APPS: case SETTINGS: case ABOUT: change_page(ROOT); break;
+    case APPS: case SETTINGS: change_page(ROOT); break;
     case PASSWORD: case SSID: case NETWORK_TYPE: change_page(SCAN); break;
     case CONNECTING:
         request_radio(PP_RADIO_CANCEL_JOIN); memset(&s_keyboard,0,sizeof(s_keyboard)); change_page(WIFI); break;
     case SCAN: case FORGET: change_page(WIFI); break;
-    case APP_DETAIL: change_page(APP_USAGE); break;
-    case APP_USAGE: case FLASH_LAYOUT: case NVS_USAGE: change_page(CAPACITY); break;
     default: change_page(SETTINGS); break;
     }
 }
@@ -217,11 +209,11 @@ static void input(pp_key_t key)
         else if(s_selection==2) {
             if(s_runtime.active>=0) { pp_resume(&s_runtime); change_page(APP); turn_screen_off(true); }
             else strcpy(s_notice,"Open an app first.");
-        } else change_page(s_selection==3?SETTINGS:ABOUT);
+        } else change_page(SETTINGS);
         break;
     case APPS: launch(s_selection); break;
     case SETTINGS: {
-        const page_t targets[]={WIFI,BLE,SOUND,DISPLAY,TIMEOUT,SCREEN_MODE,DEVICE,CAPACITY};
+        const page_t targets[]={WIFI,SOUND,DISPLAY,TIMEOUT,SCREEN_MODE};
         change_page(targets[s_selection]); break;
     }
     case WIFI:
@@ -247,18 +239,8 @@ static void input(pp_key_t key)
         if(s_join_open) connect_network();
         break;
     case CONNECTING: back(); break;
-    case BLE:
-        if(s_selection==0) {
-            bool enable=!s_settings.ble;
-            if(request_radio(enable?PP_RADIO_BLE_ON:PP_RADIO_BLE_OFF)) { s_settings.ble=enable; settings_changed(); }
-        } else back();
-        break;
     case SCREEN_MODE: s_settings.screen_mode=s_selection; settings_changed(); save_settings(); change_page(SETTINGS); break;
     case FORGET: if(s_selection==1) request_radio(PP_RADIO_FORGET); change_page(WIFI); break;
-    case CAPACITY: {
-        const page_t targets[]={FLASH_LAYOUT,APP_USAGE,NVS_USAGE,DIAGNOSTICS}; change_page(targets[s_selection]); break;
-    }
-    case APP_USAGE: s_usage_index=s_selection; change_page(APP_DETAIL); break;
     default: back(); break;
     }
 }
@@ -275,24 +257,29 @@ static void build_view(pp_view_t *v,const pp_radio_state_t *radio,int battery)
     int total=rows(),first=s_selection>=6?s_selection-5:0;
     v->row_count=total-first>6?6:total-first; v->selected=s_selection-first;
     snprintf(v->app,sizeof(v->app),"%s",s_runtime.active<0?"PASSPORT":s_runtime.apps[s_runtime.active].name);
-    snprintf(v->status,sizeof(v->status),"Wi-Fi %s | BLE %s",wifi_label(radio->wifi),radio->ble_on?"ON":"OFF");
+    switch(radio->wifi) {
+    case PP_WIFI_OFF: v->wifi=PP_LINK_OFF; break;
+    case PP_WIFI_EMPTY: v->wifi=PP_LINK_UNCONFIGURED; break;
+    case PP_WIFI_CONNECTING: v->wifi=PP_LINK_BUSY; break;
+    case PP_WIFI_ONLINE: v->wifi=PP_LINK_ON; break;
+    default: v->wifi=PP_LINK_ERROR; break;
+    }
     const char *wifi=wifi_label(radio->wifi);
     switch(s_page) {
     case APP: break;
     case ROOT: {
         strcpy(v->title,"SYSTEM");
-        const char *labels[]={s_runtime.active<0?"No active app":"Resume app","Applications","Screen off (run)","Settings","About"};
+        const char *labels[]={s_runtime.active<0?"No active app":"Resume app","Applications","Screen off (run)","Settings"};
         for(int i=0;i<v->row_count;++i) strcpy(v->rows[i],labels[i+first]);
         break;
     }
     case APPS:
         strcpy(v->title,"APPLICATIONS");
         for(int i=0;i<v->row_count;++i) snprintf(v->rows[i],48,"%s%s",s_runtime.active==i+first?"* ":"",pp_apps[i+first].name);
-        if(v->row_count<4) strcpy(v->detail,"Your custom apps.\nLast app opens on boot.");
         break;
     case SETTINGS: {
         strcpy(v->title,"SETTINGS");
-        const char *labels[]={"Wi-Fi","Bluetooth LE","Sound","Brightness","Screen timeout","Screen-off mode","Device status","Storage"};
+        const char *labels[]={"Wi-Fi","Sound","Brightness","Screen timeout","Screen-off mode"};
         for(int i=0;i<v->row_count;++i) strcpy(v->rows[i],labels[i+first]);
         break;
     }
@@ -325,9 +312,6 @@ static void build_view(pp_view_t *v,const pp_radio_state_t *radio,int battery)
     case CONNECTING:
         strcpy(v->title,"CONNECTING");
         snprintf(v->detail,sizeof(v->detail),"%.32s\n\nConnecting, up to 25 s.\nSaved after success.\n\nOK: cancel",s_join_ssid); break;
-    case BLE:
-        strcpy(v->title,"BLUETOOTH LE"); snprintf(v->rows[0],48,"Beacon: %s",s_settings.ble?"ON":"OFF"); strcpy(v->rows[1],"Back");
-        snprintf(v->detail,sizeof(v->detail),"Name: Passport\n%s\n\nBroadcast only.\nNo pairing / audio.",radio->ble_error?"BLE ERROR":radio->ble_on?"ADVERTISING":s_settings.ble?"STARTING":"OFF"); break;
     case SOUND: case DISPLAY: case TIMEOUT:
         strcpy(v->title,s_page==SOUND?"SOUND":s_page==DISPLAY?"BRIGHTNESS":"SCREEN TIMEOUT");
         if(s_page==TIMEOUT) snprintf(v->detail,sizeof(v->detail),"%u seconds\n0 = always on\n\nUP / DOWN: adjust\nOK: save and return",pp_timeout_seconds(s_settings.timeout));
@@ -341,56 +325,13 @@ static void build_view(pp_view_t *v,const pp_radio_state_t *radio,int battery)
     case FORGET:
         strcpy(v->title,"FORGET WI-FI?"); strcpy(v->rows[0],"Cancel"); strcpy(v->rows[1],"Forget network");
         strcpy(v->detail,"Removes only saved\nWi-Fi credentials."); break;
-    case DEVICE:
-        strcpy(v->title,"DEVICE STATUS");
-        snprintf(v->detail,sizeof(v->detail),"Wi-Fi: %s\nIP: %s\nBLE: %s\nVolume: %u%%\nBrightness: %u%%\nBattery: %d%%\nPassport %s\n\nOK: back",
-          wifi,radio->ip[0]?radio->ip:"--",radio->ble_on?"ON":"OFF",s_settings.volume,s_settings.brightness,battery,PP_VERSION); break;
-    case CAPACITY:
-        strcpy(v->title,"STORAGE");
-        strcpy(v->rows[0],"Flash and firmware"); strcpy(v->rows[1],"Application usage"); strcpy(v->rows[2],"Settings storage"); strcpy(v->rows[3],"Runtime memory");
-        if(pp_build_metrics.valid) snprintf(v->detail,sizeof(v->detail),"Program free: %lu KiB\nShared code counted once.",(unsigned long)((0x300000-pp_build_metrics.image_bytes)/1024));
-        else strcpy(v->detail,"Build metrics unavailable");
-        break;
-    case FLASH_LAYOUT: {
-        pp_capacity_t c; pp_capacity_read(&c);
-        strcpy(v->title,"FLASH / PROGRAM");
-        uint32_t owned=0; for(int i=0;i<PP_APP_COUNT;++i) owned+=pp_build_metrics.app_flash[i];
-        if(pp_build_metrics.valid) snprintf(v->detail,sizeof(v->detail),"Flash total: %lu KiB\nAllocated: %lu KiB\nUnassigned: %lu KiB\n\nProgram: %lu / %lu KiB\nCan grow: %lu KiB\nSystem/shared: %lu KiB\n\nUnassigned is not an\napp install partition.",
-          (unsigned long)(c.total/1024),(unsigned long)(c.allocated/1024),(unsigned long)(c.unassigned/1024),
-          (unsigned long)(pp_build_metrics.image_bytes/1024),(unsigned long)(c.program_limit/1024),
-          (unsigned long)((c.program_limit-pp_build_metrics.image_bytes)/1024),(unsigned long)((pp_build_metrics.image_bytes-owned)/1024));
-        else strcpy(v->detail,"Capacity build required.\nUse the release pipeline.");
-        break;
-    }
-    case APP_USAGE:
-        strcpy(v->title,"APPLICATION USAGE");
-        for(int i=0;i<v->row_count;++i) snprintf(v->rows[i],48,"%s: %lu B",pp_apps[first+i].name,(unsigned long)pp_build_metrics.app_flash[first+i]);
-        if(v->row_count<4) strcpy(v->detail,"Own linked code/assets.\nShared libraries excluded.\nOK: details");
-        break;
-    case APP_DETAIL: {
-        strcpy(v->title,"APP STORAGE");
-        size_t entries=0; nvs_handle_t handle;
-        if(nvs_open_from_partition("settings",pp_namespaces[s_usage_index],NVS_READONLY,&handle)==ESP_OK) { nvs_get_used_entry_count(handle,&entries); nvs_close(handle); }
-        snprintf(v->detail,sizeof(v->detail),"%s %s\nFlash: %lu bytes\nStatic RAM: %lu bytes\nSaved entries: %u\n\nShared code excluded.\nHeap / stacks excluded.\nSaves use system NVS.\n\nOK: back",pp_apps[s_usage_index].name,pp_apps[s_usage_index].version,
-          (unsigned long)pp_build_metrics.app_flash[s_usage_index],(unsigned long)pp_build_metrics.app_ram[s_usage_index],(unsigned)entries); break;
-    }
-    case NVS_USAGE: {
-        pp_capacity_t c; pp_capacity_read(&c); strcpy(v->title,"SETTINGS STORAGE");
-        snprintf(v->detail,sizeof(v->detail),"Partition: 24 KiB\nEntries: %lu total\nEntries: %lu free\n\nVariable record overhead;\nnot equivalent to bytes.\nWi-Fi, system and app\nsaves share this pool.\n\nOK: back",(unsigned long)c.settings_total,(unsigned long)c.settings_free); break;
-    }
-    case DIAGNOSTICS:
-        strcpy(v->title,"RUNTIME MEMORY");
-        snprintf(v->detail,sizeof(v->detail),"Audio: %s\nButtons: %s\nStorage: %s\nRadio error: %d\nHeap free: %lu KiB\nMinimum: %lu KiB\n\nShared runtime heap;\nnot Flash capacity.\n\nOK: back",
-          pp_audio_ok()?"OK":"ERROR",v->buttons_ok?"OK":"ERROR",s_storage_error?"ERROR":"OK",radio->error,(unsigned long)(esp_get_free_heap_size()/1024),(unsigned long)(esp_get_minimum_free_heap_size()/1024)); break;
-    case ABOUT:
-        strcpy(v->title,"PASSPORT");
-        snprintf(v->detail,sizeof(v->detail),"Platform %s\nESP32-C3 / 8 MB\nESP-IDF %s\n\n%d custom app(s)\nOne system firmware\n\nOK: back",PP_VERSION,esp_get_idf_version(),PP_APP_COUNT); break;
+
     }
     if(s_notice[0]) snprintf(v->detail,sizeof(v->detail),"%s",s_notice);
 }
 static void control_worker(void *unused)
 {
-    (void)unused; int battery=-1; int64_t battery_at=0,render_at=0;
+    (void)unused; int battery=-1; int64_t battery_at=0,render_at=0,logic_at=esp_timer_get_time();
     s_last_key=esp_timer_get_time();
     for(;;) {
         input_event_t e;
@@ -439,6 +380,13 @@ static void control_worker(void *unused)
         bool editing=s_page==SSID || s_page==PASSWORD || s_page==CONNECTING || s_page==SCAN;
         if(s_screen==PP_SCREEN_ON && timeout && !editing && now-s_last_key>=(int64_t)timeout*1000000)
             turn_screen_off(s_settings.screen_mode==1);
+        if(s_runtime.active>=0) {
+            const pp_app_module_t *module=pp_modules[s_runtime.active];
+            uint32_t elapsed=(uint32_t)((now-logic_at)/1000);
+            if(module->tick) module->tick(module->ctx,elapsed>1000?1000:elapsed,
+                s_screen==PP_SCREEN_ON && s_page==APP && s_runtime.focused);
+        }
+        logic_at=now;
         if(now>=battery_at) { battery=s_battery_ok?bsp_battery_soc():-1; battery_at=now+30000000; }
         if(s_screen==PP_SCREEN_ON && now>=render_at && bsp_lvgl_lock(20)) {
             pp_view_t v; build_view(&v,&radio,battery); pp_ui_render(&v);
@@ -457,7 +405,7 @@ void app_main(void)
     if(!bsp_lvgl_lock(1000)) return;
     pp_ui_create(); bsp_lvgl_unlock();
     pp_audio_init(s_settings.volume); s_battery_ok=bsp_battery_init()==ESP_OK;
-    s_radio_ok=pp_radio_init(s_settings.wifi,s_settings.ble)==ESP_OK;
+    s_radio_ok=pp_radio_init(s_settings.wifi)==ESP_OK;
     int index=pp_find_app(&s_runtime,last);
     if(!safe && index>=0) launch(index);
     else if(safe) snprintf(s_notice,sizeof(s_notice),"Safe start. Choose an app.");

@@ -2,26 +2,36 @@
 
 # Application integration and firmware delivery
 
-Version 0.3.0 uses one statically linked firmware, one foreground custom app and shared system services. A community full BIN is a replacement operating image, not a plugin. Do not concatenate BINs, create an app partition per menu entry, or call another project's `app_main`.
+Version 0.6.0 uses one statically linked firmware, one foreground custom app and shared system services. A community full BIN is a replacement operating image, not a plugin. Do not concatenate BINs, create an app partition per menu entry, or call another project's `app_main`.
+
+Platform 0.4.0 keeps this model and adds [Yaya Pet](pet-v1.md). Modules may provide
+`tick(ctx, elapsed_ms, showing)` for logic outside rendering. The control worker
+calls it about every 20 ms, outside the LVGL lock; `showing` requires a lit screen,
+app page and focus. Handle visibility transitions, discard catch-up on resume,
+and never touch UI in this callback. Use designated module initializers so future
+optional callbacks default to null. [Voice integration](voice-integration.md)
+records independent Yaya Pet/Yaya Chat ownership: shared artwork only, no pet-save connection or cloud-role change. IDA remains separate future work.
+
+In 0.6.0, Wi-Fi and battery share the 30-pixel top bar. App content is 240x290 at y=30 without a permanent footer. Query parent geometry and preserve native pixels. Bluetooth, Storage, About and device/runtime/capacity pages are removed; provisioning, volume, brightness, timeout and screen modes remain. Capacity reports are developer artifacts.
 
 ## Repeatable development path
 
 1. Read the current platform guide, `apps/catalog.json`, `passport_apps.h`, `passport_core.h` and the Muyu component. Start from the latest tested platform commit, not the old standalone Muyu branch. Preserve unrelated work; use a `codex/*` branch.
 2. From `firmware/muyu`, run `python tools/new_app.py my_app --name "My App"`. It creates `components/pp_app_my_app/` and updates the catalog, refusing existing names. The generated counter is an integration scaffold, not a production app. Up to 16 apps are supported.
 3. Implement the module callbacks. The catalog owns ID, display name, version, author, component, exported module symbol and NVS namespace. CMake generates the runtime registry from this same catalog. No edits to the shell's application menu are needed.
-4. `start` initializes lightweight app state; `focus(true)` acquires resources after activation; `key` receives semantic short presses. `focus(false)` suspends work; `stop` must cancel and join workers before UI destruction. The shell reserves long OK. It supplies a 240×235 content container below the status bar; UI creation/rendering run under its LVGL lock. Apps do not initialize the display, buttons, network stack or codec again.
-5. Use `pp_app_runtime()` only on the control task. Register bounded, idempotent cancellation callbacks with `pp_resource_acquire`; old generation results must be discarded. Network workers return bounded messages to the control task. A stop flag alone is not a joined producer. The current audio service supports the Muyu knock; microphone/streaming adapters still need implementation and resource ownership tests.
+4. `start` initializes lightweight app state; `focus(true)` acquires resources after activation; `key` receives semantic short presses. `focus(false)` suspends work; `stop` must cancel and join workers before UI destruction. The shell reserves long OK. It supplies a 240x290 content container below the status bar; UI creation/rendering run under its LVGL lock. Apps do not initialize the display, buttons, network stack or codec again.
+5. Use `pp_app_runtime()` only on the control task. Register bounded, idempotent cancellation callbacks with `pp_resource_acquire`; old generation results must be discarded. Network workers return bounded messages to the control task. A stop flag alone is not a joined producer. The existing `pp_voice` owns recording/playback and the system audio lease. Reuse its ownership boundary rather than creating a second audio stack; Yaya Pet does not call voice.
 6. Save into the `settings` partition using the catalog's `app_*` namespace. Add versioned serialization and migration tests. Never erase shared NVS or the whole Flash. Do not persist pointers, plaintext provider keys or logs containing user credentials.
-7. Run focused app tests, then `./tools/validate.sh --static` and `./tools/validate.sh --firmware` in ESP-IDF 5.5.3. Review the final `capacity-report.json`, actual LVGL previews and app switching/cancellation tests. Test both directions of switching, Wi-Fi reuse, dark operation, wake, restart and save migration on hardware.
+7. Run focused app tests, then `./tools/validate.sh --static`, `./tools/validate.sh --preview` and `./tools/validate.sh --firmware` in ESP-IDF 5.5.3. Review the final `capacity-report.json`, actual LVGL previews and app switching/cancellation tests. Test both directions of switching, Wi-Fi reuse, dark operation, wake, restart and save migration on hardware.
 8. Commit the explicitly reviewed app/catalog/tests/docs files, push and update the project PR. Bind the delivered BIN, source SHA, CI run and SHA-256; record Build / Host tests / Device tests separately. Preserve the previous tested package until the user accepts the new one.
 
 ## One build produces the whole system
 
-`catalog → generated registry + component list → link platform and all apps → measure linked archives → embed fixed-size metrics → relink → verify metrics unchanged → merge and validate → full BIN + capacity report + checksum`
+`catalog → generated registry + component list → link platform and all apps → measure linked archives → write build measurement header → relink → verify final accounting unchanged → merge and validate → full BIN + capacity report + checksum`
 
 The capacity tool uses the official ESP-IDF size map. Each app owns one archive. Linked code, constants and initialized data count toward its Flash contribution; BSS does not. Static RAM is reported separately. Shared SDKs, the UI shell, audio worker and image padding count once as system/shared overhead. Per-app values do not claim to equal the Flash reclaimed by uninstalling that app. Dynamic heap/stacks/DMA cannot be attributed by this report.
 
-The two-pass build refuses a stale embedded measurement. Direct `idf.py build` may contain missing/stale metrics and is not a delivery command. Use the complete gate for every distributed BIN.
+The two-pass check refuses stale final-size accounting. The measurement header is a build artifact; device capacity pages and their linked metrics object are no longer required. Direct `idf.py build` does not complete report/merge verification. Use the complete gate for every distributed BIN.
 
 For a successful CI run, download the `passport-firmware-<SHA>` artifact into `<delivery>/firmware` and `passport-preview-<SHA>` into `<delivery>/preview`. Save `gh run view <run> --json conclusion,headSha,url` as `<delivery>/ci-result.json` and `gh run view <run> --log` as `<delivery>/ci-log.txt`. Run `python tools/package_release.py <delivery> --output <dist>` from this exact clean source commit. The script verifies the CI/head, partition layout, image checksums, test evidence and capacity report, then creates one clearly named full BIN and a checked ZIP. It does not flash or publish a release.
 
@@ -32,8 +42,8 @@ The host gate also compiles an independently generated scaffold and registry, th
 - Physical Flash: 8 MiB; executable partition: 3 MiB at `0x10000`.
 - Persistent settings: `0x310000`, 24 KiB. Device identity: `0x356000`, 16 KiB. Do not move or overwrite either.
 - Firmware growth headroom equals the executable partition limit minus the final application image length. Other unassigned Flash is not automatically an installable app area.
-- Settings free capacity is shown in NVS entries, not guessed byte capacity. App details show used entries in that app's namespace. Variable-length blobs use metadata/chunks.
-- Current resource assets are linked into each app archive. No external asset partition is included by this version. If assets exceed the 3 MiB budget, use compression/subsets or design and review a separate resource layout.
+- Device capacity pages are removed. Development diagnostics must count NVS entries and blob metadata/chunks rather than invent free-byte estimates.
+- Shared artwork/font are linked once through `pp_avatar`; app-specific assets remain with their owning archive. No external asset partition is included by this version. If assets exceed the 3 MiB budget, use compression/subsets or design and review a separate resource layout.
 
 Adding resources above `cardid` changes delivery: a raw merged BIN from `0x0` would write its padding across settings/identity. Such a package must use a reviewed segmented manifest/flasher preserving those ranges. Do not silently enlarge the current full BIN. Dynamic app installation, multi-boot and OTA are separate future designs, not supported by this release.
 

@@ -4,6 +4,65 @@
 
 # Changelog
 
+## 0.6.1 - Lightweight conversation feedback
+
+- Give Yaya Chat distinct listening, thinking, speaking and idle motions. Keep the existing fixed words and use pixel dots/bars instead of a large transcript font.
+- Drive speaking mouth shapes and bars from successfully submitted playback PCM, independently of microphone level; clear stale or cancelled output. Keep the audio buffers, protocol and 40 KiB worker stack.
+- Use a compact speech card with no added image, font, canvas or background task. Reset motion after menu/screen-off; preserve activation and error readability and Pet rendering/saves.
+- Gate image growth at 8 KiB and linked chat/avatar/voice static RAM growth at 256 B against 0.6.0. Device timing, peak RAM and extended voice stability require separate acceptance.
+
+## 0.6.0 - Independent Yaya care and chat
+
+- Keep Yaya Pet and Yaya Chat as independent menu entries. Share only pixel artwork; chat does not read or change pet saves, and the existing Qixi cloud configuration is unchanged.
+- Replace the Xiaozhi orb with the shared room/avatar and state-driven speech card. Reuse one 4,288-byte sprite surface; keep the existing voice service, TLS, Opus and 40 KiB worker unchanged.
+- Expand content to 240x290 and remove the permanent bottom hint bar. Preserve activation/errors, keyboard help and button-failure visibility.
+- Remove Storage, About, device/runtime/capacity subpages and Bluetooth. Disable BT/NimBLE/coexistence in the build; retain Wi-Fi provisioning, volume, brightness, timeout and screen-off modes.
+- Keep developer capacity/link reports and the protected layout/reserve gates. Add the shared `--preview` gate to complete validation. New device acceptance and measured memory savings remain pending.
+
+## 0.5.3 - Automatic Xiaozhi conversation
+
+- Start with one OK press, use service endpointing and listen again after each reply drains.
+- Stop capture on TTS start; clear stale microphone samples before the next turn.
+- Add a tested turn state machine, bounded cancellation/timeouts and safe transport diagnostics.
+- Real host testing passed two automatic turns on one connection. 0.5.2 physical recording/playback passed with stability gaps; new 0.5.3 hardware acceptance remains pending.
+- Preserve the 40 KiB worker stack, codec parameters, shared Wi-Fi and protected storage layout.
+
+## 0.5.2 - Xiaozhi codec diagnostics
+
+- Run fixed PCM through the actual encoder and decoder before voice networking or I2S acquisition.
+- Measure a 40 KiB worker stack without changing Opus parameters; log first real capture/decode boundaries.
+- Add a bounded host voice probe with credential-safe statistics and offline protocol tests.
+- 0.5.1 hardware logs confirm a Xiaozhi task stack overflow after encoder creation. This diagnostic build still requires device validation.
+
+## 0.5.1 - Xiaozhi runtime memory
+
+- Address the real C3 Opus encoder allocation failure with upstream Wi-Fi/TLS memory settings.
+- Use one codec direction at a time; release codecs while idle, thinking or cancelled.
+- Preserve specific initialization errors and report internal heap, largest block and stack headroom.
+- Add 10,000-turn codec ownership and failure-injection regression checks. New hardware acceptance is pending.
+
+## 0.5.0 - Standalone Xiaozhi test build
+
+- Add shared-Wi-Fi Xiaozhi voice, protected identity and bounded manual half-duplex sessions.
+- Remove Muyu from the linked firmware; keep the pixel pet offline for later voice integration.
+- Device testing subsequently found an Opus encoder allocation failure; superseded by 0.5.1.
+
+## 0.4.1 - Compact system status bar
+
+- Place Wi-Fi and BLE icons beside the battery, replacing the separate network-text row.
+- Expand the application container from 240×235 to 240×265; adapt pet and Muyu spacing without enlarging image assets.
+- Keep detailed radio states in Settings and preview off, online, connecting, unconfigured and error states, including long names and 100% battery.
+- Preserve pet save format, game rules, device wiring and protected Flash partitions.
+
+## 0.4.0 - Pet 0.1.0 test build
+
+- Add a low-interaction pixel pet: autonomous daily life, feed/play/rest, levels and one evolution.
+- Add two small CRC-checked saves, failure-safe transactions and pause on menu/screen-off/app switch.
+- Reuse a 16-color room, one small sprite buffer and subset font; enforce future voice headroom.
+- Add independent module ticks and a session-scoped Avatar contract for later Xiaozhi integration.
+- Plan IDA as a separate voice-enabled entry; neither network integration is included in this build.
+- Add model/persistence/art tests and real LVGL switching previews; hardware acceptance remains pending.
+
 ## 0.3.0
 
 - Replace phone provisioning with an on-device Wi-Fi keyboard, bounded attempts and save-on-success.

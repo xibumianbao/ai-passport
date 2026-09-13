@@ -1,0 +1,274 @@
+{
+  "date": "2026-09-13",
+  "evidence_policy": "Sanitized observations only; no identifiers, tokens, transcripts or raw memory dumps.",
+  "device_0_5_1": {
+    "source_commit": "dcdb4457dec5f461d90d12b321424184232b11a5",
+    "firmware_version_observed": "0.5.1",
+    "elf_sha_prefix_observed": "f2b2b5ebf",
+    "status": "FAIL",
+    "encoder_creation": "PASS",
+    "decoder_creation": "PASS",
+    "fatal_message": "A stack overflow in task xiaozhi has been detected",
+    "phase": "After recording encoder creation, before the first reported uploaded frame",
+    "worker_stack_bytes": 24576,
+    "before_recording_encoder_heap_bytes": 70224,
+    "after_recording_encoder_heap_bytes": 45584,
+    "after_recording_encoder_largest_block_bytes": 31744,
+    "before_processing_stack_high_water_bytes": 20544,
+    "boundary": "Guard failure and restart confirmed. Fixed-PCM isolation is still needed to distinguish stack depth from other corrupting writes."
+  },
+  "host_audio": {
+    "status": "PASS",
+    "input": "Nonprivate synthetic speech",
+    "client_identity": "Authorized connected-device identifier and temporary RAM-only host Client UUID",
+    "discovery_http": 200,
+    "activation_required": false,
+    "protocol": 1,
+    "server_sample_rate": 24000,
+    "input_and_output_sample_rate": 16000,
+    "frame_duration_ms": 60,
+    "opus_implementation": "Official Xiph libopus 1.6.1, locally compiled",
+    "runs": [
+      {
+        "input_seconds": 6.28,
+        "tx_frames": 105,
+        "rx_frames": 23,
+        "output_seconds": 1.38,
+        "output_rms": 2741.64,
+        "stt_semantics": true,
+        "tts_semantics": true
+      },
+      {
+        "input_seconds": 6.28,
+        "tx_frames": 105,
+        "rx_frames": 19,
+        "output_seconds": 1.14,
+        "output_rms": 2650.38,
+        "stt_semantics": true,
+        "tts_semantics": true
+      }
+    ],
+    "configuration_changes": false,
+    "tool_calls_executed": false,
+    "boundary": "PC audio round trips do not validate ESP codec resource use, persistent firmware identity, microphone, speaker or app switching."
+  },
+  "device_0_5_2": {
+    "status": "PARTIAL PASS",
+    "worker_stack_bytes": 40960,
+    "stack_margin_diagnostic_threshold_bytes": 4096,
+    "largest_block_observation_target_bytes": 20480,
+    "scope": "Fixed PCM codec isolation before voice networking/I2S, then first real capture and playback markers",
+    "pending": [
+      "sustained stability",
+      "largest-free-block reserve",
+      "classify connection end",
+      "rapid cancellation/re-entry",
+      "screen-off modes",
+      "network loss/retry"
+    ],
+    "user_confirmed": "Smooth physical voice dialogue after reconnect",
+    "source_commit_user_flashed": "c876d289380e1ac029ead1393eb97682c5b2cbe7",
+    "boot_version_header_captured": false,
+    "diagnostic_signature_matched": true,
+    "fixed_pcm_selftest_runs": 3,
+    "minimum_observed_stack_bytes": 16192,
+    "minimum_observed_heap_bytes": 17360,
+    "minimum_observed_largest_block_bytes": 8192,
+    "connection_end_errors": 1,
+    "panic_observed": false,
+    "session_counters": [
+      {
+        "tx_frames": 468,
+        "rx_frames": 584
+      },
+      {
+        "tx_frames": 0,
+        "rx_frames": 0
+      },
+      {
+        "tx_frames": 247,
+        "rx_frames": 220
+      },
+      {
+        "tx_frames": 148,
+        "rx_frames": 343
+      }
+    ],
+    "boundary": "Real capture, cloud decode and playback writes plus user audible confirmation passed. One connection ended normally through cleanup; root cause unknown. Largest free block target not met. Full stability, fast re-entry, dark modes and network recovery remain pending."
+  },
+  "host_auto_audio": {
+    "passed": true,
+    "scope": "host_auto_voice_probe_not_device_audio_acceptance",
+    "mode": "auto",
+    "protocol": 1,
+    "requested_rounds": 2,
+    "completed_rounds": 2,
+    "tx_frames": 227,
+    "rx_frames": 42,
+    "rounds": [
+      {
+        "passed": true,
+        "protocol": 1,
+        "hello_received": true,
+        "server_sample_rate": 24000,
+        "output_sample_rate": 16000,
+        "input_seconds": 6.28,
+        "output_seconds": 1.14,
+        "tx_frames": 114,
+        "tx_opus_bytes": 13785,
+        "rx_frames": 19,
+        "rx_opus_bytes": 3949,
+        "stt_present": true,
+        "tts_text_present": true,
+        "tts_started": true,
+        "tts_stopped": true,
+        "output_peak": 15391,
+        "output_rms": 2743.87,
+        "output_clipped_samples": 0,
+        "ignored_messages": 1,
+        "elapsed_seconds": 10.34,
+        "round": 1,
+        "mode": "auto",
+        "input_frames": 105,
+        "silence_frames": 9,
+        "silence_seconds": 0.54,
+        "upload_stop_reason": "tts_start"
+      },
+      {
+        "passed": true,
+        "protocol": 1,
+        "hello_received": true,
+        "server_sample_rate": 24000,
+        "output_sample_rate": 16000,
+        "input_seconds": 6.28,
+        "output_seconds": 1.38,
+        "tx_frames": 113,
+        "tx_opus_bytes": 13768,
+        "rx_frames": 23,
+        "rx_opus_bytes": 4734,
+        "stt_present": true,
+        "tts_text_present": true,
+        "tts_started": true,
+        "tts_stopped": true,
+        "output_peak": 15958,
+        "output_rms": 2992.71,
+        "output_clipped_samples": 0,
+        "ignored_messages": 1,
+        "elapsed_seconds": 10.377,
+        "round": 2,
+        "mode": "auto",
+        "input_frames": 105,
+        "silence_frames": 8,
+        "silence_seconds": 0.48,
+        "upload_stop_reason": "tts_start"
+      }
+    ],
+    "events": [
+      {
+        "round": 0,
+        "event": "hello",
+        "elapsed_ms": 593
+      },
+      {
+        "round": 1,
+        "event": "listen_start_auto",
+        "elapsed_ms": 628
+      },
+      {
+        "round": 1,
+        "event": "silence_begin",
+        "elapsed_ms": 8576
+      },
+      {
+        "round": 1,
+        "event": "stt",
+        "elapsed_ms": 9141
+      },
+      {
+        "round": 1,
+        "event": "upload_stopped_by_tts_start",
+        "elapsed_ms": 9168
+      },
+      {
+        "round": 1,
+        "event": "tts_start",
+        "elapsed_ms": 9168
+      },
+      {
+        "round": 1,
+        "event": "audio_first",
+        "elapsed_ms": 9969
+      },
+      {
+        "round": 1,
+        "event": "tts_stop",
+        "elapsed_ms": 10934
+      },
+      {
+        "round": 2,
+        "event": "listen_start_auto",
+        "elapsed_ms": 10934
+      },
+      {
+        "round": 2,
+        "event": "silence_begin",
+        "elapsed_ms": 18844
+      },
+      {
+        "round": 2,
+        "event": "stt",
+        "elapsed_ms": 19400
+      },
+      {
+        "round": 2,
+        "event": "upload_stopped_by_tts_start",
+        "elapsed_ms": 19400
+      },
+      {
+        "round": 2,
+        "event": "tts_start",
+        "elapsed_ms": 19400
+      },
+      {
+        "round": 2,
+        "event": "audio_first",
+        "elapsed_ms": 20110
+      },
+      {
+        "round": 2,
+        "event": "tts_stop",
+        "elapsed_ms": 21311
+      }
+    ],
+    "semantic_checks": [
+      {
+        "round": 1,
+        "stt_contains_test_request": true,
+        "tts_contains_expected_reply": true
+      },
+      {
+        "round": 2,
+        "stt_contains_test_request": true,
+        "tts_contains_expected_reply": true
+      }
+    ],
+    "semantic_passed": true,
+    "manual_listen_stop_sent": false,
+    "boundary": "Same WSS/session with synthetic speech. Does not validate device I2S handoff, acoustic echo, memory reserve or app lifecycle."
+  },
+  "device_0_5_3": {
+    "status": "NOT RUN",
+    "worker_stack_bytes": 40960,
+    "scope": "Automatic half-duplex continuous dialogue with server endpointing",
+    "pending": [
+      "two or more automatic physical voice turns",
+      "speaker tail and stale microphone audio",
+      "short OK stop and restart",
+      "long OK cancel during capture/playback/resume",
+      "30-second listen timeout",
+      "network failure/retry",
+      "screen-off modes",
+      "long-session memory and stack reserve"
+    ]
+  }
+}

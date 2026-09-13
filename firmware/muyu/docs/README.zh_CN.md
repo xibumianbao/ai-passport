@@ -2,6 +2,8 @@
 
 本项目编译[Passport 多应用底座](../README.zh_CN.md)，按键操作、来源、构建产物和实机验收以应用说明为准。
 
+新增产品说明：[芽芽宠物测试版](pet-v1.zh_CN.md)、[独立小智](xiaozhi-standalone.zh_CN.md)、[后续语音接入](voice-integration.zh_CN.md)。
+
 [English](README.md) | 简体中文
 
 FoloToy AI Passport 是一个开放式可穿戴 AI 硬件，本仓库是这款 AI 硬件的开发基线。它不只展示"板子能运行什么"，还把开发应用所需的**硬件事实、稳定接口、资源边界、参考实现和验收方法**放在同一仓库中。
@@ -112,6 +114,9 @@ LICENSE                  仓库许可证
 ```
 
 ## 文档索引
+
+- [小智融合研究与实施方案](xiaozhi-research.zh_CN.md) — 当前控制台与源码证据、共享语音架构、身份保存、容量和验收计划；语音尚未实现。
+- [语音接入边界](voice-integration.zh_CN.md) — 应用所有权与后续 IDA 路由。
 
 本仓库文档按功能域组织。`authoritative` 指对开发与协作有约束力的文档；`参考` 指提供背景或索引的文档。
 

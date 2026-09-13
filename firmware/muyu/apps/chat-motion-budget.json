@@ -1,0 +1,14 @@
+{
+  "version": "0.6.1",
+  "baseline_version": "0.6.0",
+  "baseline_source_commit": "c95dfa2553e0a5d8c033a60e939718a479f41c60",
+  "baseline_image_bytes": 1810000,
+  "max_image_growth_bytes": 8192,
+  "baseline_static_ram_bytes": {
+    "pp_app_xiaozhi": 36,
+    "pp_avatar": 4309,
+    "pp_voice": 138
+  },
+  "max_static_ram_growth_bytes": 256,
+  "boundary": "Linked image and component static RAM only; excludes heap, stacks and DMA. Device peak RAM remains a separate measurement."
+}

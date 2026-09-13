@@ -19,6 +19,14 @@ Store reusable font files and generated font sources in `fonts/`.
 
 ## Images
 
+The original pet room is `images/pp_pet_room_i4.c`: 240 by 148 pixels, 16-color I4,
+17,824 bytes including palette, linked by `pp_app_pet`. Its editable source is
+`components/pp_avatar/pp_pixel_art.c` (repository MIT license); regenerate with
+`tools/preview/pet_art_export.c`. No third-party game artwork is used.
+The pet's `main/font_pet_14.c` is an ASCII/UI subset of Source Han Sans SC Medium,
+14 pixels and 2 bpp, under [OFL](fonts/SourceHanSans-OFL.txt). Regeneration uses
+`tools/generate_pet_font.py` and an external full OTF; no full font is shipped.
+
 Store reusable source images and generated display assets in `images/`.
 
 - Use descriptive names and document dimensions, pixel format, conversion steps, and destination.

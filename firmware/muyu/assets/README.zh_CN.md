@@ -17,6 +17,13 @@
 
 ## 图片（images）
 
+原创宠物房间为 `images/pp_pet_room_i4.c`：240×148、16 色 I4，含调色板共
+17,824 字节，由 `pp_app_pet` 链接。可编辑源为 `components/pp_avatar/pp_pixel_art.c`
+（仓库 MIT 许可），用 `tools/preview/pet_art_export.c` 重新生成，不使用第三方游戏素材。
+`main/font_pet_14.c` 是思源黑体 Medium 的 ASCII／界面用字子集，14 像素、2 bpp，
+保留 [OFL](fonts/SourceHanSans-OFL.txt)。通过 `tools/generate_pet_font.py` 和外部完整 OTF
+重建，完整字体不随固件交付。
+
 可复用的源图与生成的显示资产放在 `images/`。
 
 - 使用描述性命名，并记录尺寸、像素格式、转换步骤与目标路径。

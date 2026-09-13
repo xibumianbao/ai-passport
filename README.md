@@ -2,11 +2,15 @@
 
 基于 FoloToy AI Passport 的独立联网远程语音 Agent 项目。
 
-设备通过 Wi-Fi 或手机热点连接远程 Voice Gateway，使用麦克风、扬声器、屏幕和按键与 Agent 交互。首版采用按键控制的半双工语音，日常使用不依赖电脑常开。
+设备通过 Wi-Fi 或手机热点独立联网，使用麦克风、扬声器、屏幕和按键与 Agent 交互。当前复用小智服务，采用自动半双工语音，日常使用不依赖电脑常开。
 
 ## 当前状态
 
-当前迭代 [Passport 多应用底座 0.3.0](firmware/muyu/README.zh_CN.md)：设备小键盘 Wi-Fi 配网、自定义应用清单、恢复上次应用、共享系统服务、两种熄屏模式和容量查看。设备状态已移至系统设置。未来独立联网语音 Agent 将作为应用接入。
+当前迭代 [Passport 多应用底座 0.6.0](firmware/muyu/README.zh_CN.md)：[芽芽对话 Yaya Chat](firmware/muyu/docs/xiaozhi-standalone.zh_CN.md)使用小智语音和像素形象，[芽芽养成 Yaya Pet](firmware/muyu/docs/pet-v1.zh_CN.md)保持离线。两个应用通过菜单切换，只共享美术和一块绘图缓冲，不打通养成数据。
+
+小智复用系统 Wi-Fi 与受保护的设备身份；按一次 OK 开始对话，服务端自动断句，回答播完后恢复监听。短按停止、长按菜单，云端七喜配置保持。0.6.0 沿用 0.5.3 语音实现，构建、主机测试与设备验收分别记录，新包仍待用户烧录验收。IDA 保留后续独立入口；当前应用边界见[接入规划](firmware/muyu/docs/voice-integration.zh_CN.md)。
+
+移除底部常驻提示，应用内容增加到 240×290；顶部保留 Wi-Fi 与电量。蓝牙、Storage、About 和设备／运行信息页已从当前固件移除，保留设备键盘配网、音量、亮度、最近应用恢复与两种熄屏模式。容量检查继续在编译报告中执行，木鱼不再链接。
 
 新增应用按[接入与整包交付指南](firmware/muyu/docs/app-integration.zh_CN.md)执行，第三方玩法先看[小智与尖塔远征评估](firmware/muyu/docs/community-compatibility.zh_CN.md)。所有清单应用与底座一起生成一个经过校验的 full BIN，暂不支持直接安装其他项目的 BIN。
 
@@ -28,4 +32,4 @@
 - [FoloToy 官方通用开发仓库](https://github.com/FoloToy/ai-passport)
 - [FoloToy 官方小智适配](https://github.com/FoloToy/folo-ai-passport-xiaozhi)
 
-本仓库是独立项目，具体固件基线将在恢复方案与资源预算验证后确定。
+本仓库是独立项目，当前固件基线为 ESP32-C3、8 MiB Flash、ESP-IDF 5.5.3，保留官方硬件保护分区。

@@ -2,10 +2,10 @@ name: Passport platform firmware
 
 on:
   push:
-    branches: ["codex/muyu-mvp", "codex/platform-base", "main"]
-    paths: ["firmware/muyu/**", ".github/workflows/muyu.yml"]
+    branches: ["codex/muyu-mvp", "codex/platform-base", "codex/pet-avatar-v1", "main"]
+    paths: ["firmware/muyu/**", "tools/xiaozhi*voice_probe.py", "tests/test_xiaozhi*voice_probe.py", ".github/workflows/muyu.yml"]
   pull_request:
-    paths: ["firmware/muyu/**", ".github/workflows/muyu.yml"]
+    paths: ["firmware/muyu/**", "tools/xiaozhi*voice_probe.py", "tests/test_xiaozhi*voice_probe.py", ".github/workflows/muyu.yml"]
   workflow_dispatch:
 
 permissions:
@@ -25,6 +25,8 @@ jobs:
       - name: Repository, firmware-layout and host logic checks
         working-directory: firmware/muyu
         run: ./tools/validate.sh --static
+      - name: Host voice protocol and lifecycle tests (offline)
+        run: python3 -m unittest discover -s tests -p 'test_xiaozhi*voice_probe.py' -v
       - name: Check the project workflow
         run: |
           actionlint_bin="$(firmware/muyu/tools/install-actionlint.sh)"
@@ -46,6 +48,14 @@ jobs:
           command: idf.py --version && ./tools/validate.sh --firmware
       - name: Return generated files to the runner user
         run: sudo chown -R "$(id -u):$(id -g)" firmware/muyu/build
+      - name: Export component resolution for reproducibility review
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: passport-component-lock-${{ github.event.pull_request.head.sha || github.sha }}
+          path: firmware/muyu/dependencies.lock
+          if-no-files-found: error
+          retention-days: 14
       - name: Confirm pinned components
         run: |
           git diff --exit-code -- firmware/muyu/dependencies.lock
@@ -70,14 +80,7 @@ jobs:
           retention-days: 30
       - name: Render the actual LVGL UI and exercise rapid presses
         working-directory: firmware/muyu
-        run: |
-          cmake -S tools/preview -B build/preview -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build/preview --parallel 4
-          cd build
-          ./preview/passport_preview
-          ./preview/passport_catalog_test
-          ./preview/muyu_audio muyu-knock.pcm
-          python3 ../tools/preview/write_media.py
+        run: ./tools/validate.sh --preview
       - name: Upload UI previews and generated tone
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

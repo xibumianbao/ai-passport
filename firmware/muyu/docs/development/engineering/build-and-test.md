@@ -46,11 +46,12 @@ Use the unified validation entry point:
 
 ```bash
 ./tools/validate.sh --static    # repository checks, workflows, links, secrets, host tests
+./tools/validate.sh --preview   # actual LVGL fixtures, ownership and switching
 ./tools/validate.sh --firmware  # build, merge-bin, offsets, and protected layout
-./tools/validate.sh             # complete gate; requires an activated ESP-IDF environment
+./tools/validate.sh --all       # static + preview + firmware (also the default)
 ```
 
-CI calls the same script. Fix the shared script or environment if local and CI behavior differs; do not duplicate command sequences in workflows.
+Preview uses pinned LVGL sources, a host C compiler and CMake; simulated voice snapshots do not prove device audio. Full validation requires ESP-IDF 5.5.3 and includes preview. CI calls the same script. Fix the shared script or environment if local and CI behavior differs; do not duplicate command sequences in workflows.
 
 Hardware-affecting changes must also run the applicable on-device checklist in the hardware guide. Report compilation separately from physical-device validation.
 

@@ -7,3 +7,7 @@ void pp_audio_begin(uint32_t session);
 void pp_audio_knock(uint32_t session);
 void pp_audio_cancel(void *unused);
 bool pp_audio_ok(void);
+const char *pp_audio_status(void);
+bool pp_audio_acquire(void);
+void pp_audio_apply_volume(void);
+void pp_audio_release(void);

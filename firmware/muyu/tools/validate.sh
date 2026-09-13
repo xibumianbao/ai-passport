@@ -5,7 +5,7 @@ mode="${1:---all}"
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 usage() {
-    echo "Usage: $0 [--all|--static|--firmware]" >&2
+    echo "Usage: $0 [--all|--static|--firmware|--preview]" >&2
 }
 
 run_static_checks() {
@@ -37,12 +37,78 @@ run_static_checks() {
     "${test_dir}/test_passport_core"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g -Imain         tests/test_passport_extensions.c main/passport_keyboard.c main/passport_screen.c main/passport_core.c         -o "${test_dir}/test_passport_extensions"
     "${test_dir}/test_passport_extensions"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_app_pet/include -Icomponents/pp_avatar/include \
+        tests/test_pet.c components/pp_app_pet/pp_pet.c components/pp_avatar/pp_avatar.c \
+        components/pp_avatar/pp_pixel_art.c components/pp_avatar/pp_pixel_buffer.c -o "${test_dir}/test_pet"
+    "${test_dir}/test_pet"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Itests/pet_stubs -Icomponents/pp_app_pet/include \
+        tests/test_pet_store.c components/pp_app_pet/pp_pet.c components/pp_app_pet/pp_pet_store.c \
+        -o "${test_dir}/test_pet_store"
+    "${test_dir}/test_pet_store"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_voice/include tests/test_voice_wire.c components/pp_voice/pp_voice_wire.c \
+        -o "${test_dir}/test_voice_wire"
+    "${test_dir}/test_voice_wire"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_voice/include tests/test_voice_turn.c components/pp_voice/pp_voice_turn.c \
+        -o "${test_dir}/test_voice_turn"
+    "${test_dir}/test_voice_turn"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Itests/voice_stubs -Icomponents/pp_voice/include \
+        tests/test_voice_codec.c components/pp_voice/pp_voice_codec.c -o "${test_dir}/test_voice_codec"
+    "${test_dir}/test_voice_codec"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Itests/voice_stubs -Icomponents/pp_voice/include \
+        tests/test_voice_selftest.c components/pp_voice/pp_voice_codec.c components/pp_voice/pp_voice_selftest.c \
+        -o "${test_dir}/test_voice_selftest"
+    "${test_dir}/test_voice_selftest"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_avatar/include tests/test_chat_motion.c \
+        components/pp_avatar/pp_chat_motion.c components/pp_avatar/pp_pixel_art.c \
+        components/pp_avatar/pp_pixel_buffer.c -o "${test_dir}/test_chat_motion"
+    "${test_dir}/test_chat_motion"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_voice/include tests/test_voice_meter.c components/pp_voice/pp_voice_meter.c \
+        -o "${test_dir}/test_voice_meter"
+    "${test_dir}/test_voice_meter"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Icomponents/pp_avatar/include \
+        tools/preview/pet_art_export.c components/pp_avatar/pp_pixel_art.c components/pp_avatar/pp_pixel_buffer.c \
+        -o "${test_dir}/pet_art_export"
+    "${test_dir}/pet_art_export" > "${test_dir}/pp_pet_room_i4.c"
+    python3 tools/check_pet_assets.py "${test_dir}/pp_pet_room_i4.c"
     python3 tools/generate_catalog.py
     python3 tests/test_capacity.py
     python3 tests/test_verify_firmware.py
     rm -rf "${test_dir}"
     echo "Host tests: PASS"
 }
+
+run_preview_checks() (
+    local preview_build_dir="${PREVIEW_BUILD_DIR:-${repo_root}/build/preview}"
+    local -a cmake_args=(-S tools/preview -B "${preview_build_dir}" -DCMAKE_BUILD_TYPE=Debug)
+    # A local pinned LVGL checkout can be supplied without fetching components.
+    # CI uses the managed LVGL source resolved by the preceding firmware build.
+    if [[ -n "${LVGL_SOURCE_DIR:-}" ]]; then
+        cmake_args+=("-DLVGL_SOURCE_DIR=${LVGL_SOURCE_DIR}")
+    fi
+    cmake "${cmake_args[@]}"
+    preview_build_dir="$(cd -- "${preview_build_dir}" && pwd)"
+    cmake --build "${preview_build_dir}" --parallel "${PREVIEW_JOBS:-4}"
+    mkdir -p "${repo_root}/build"
+    cd "${repo_root}/build"
+    "${preview_build_dir}/avatar_view_test"
+    "${preview_build_dir}/chat_motion_test"
+    "${preview_build_dir}/voice_meter_test"
+    "${preview_build_dir}/passport_preview"
+    "${preview_build_dir}/passport_catalog_test"
+    "${preview_build_dir}/pet_preview"
+    "${preview_build_dir}/xiaozhi_preview"
+    "${preview_build_dir}/muyu_audio" muyu-knock.pcm
+    python3 "${repo_root}/tools/preview/write_media.py"
+    echo "LVGL preview and lifecycle tests: PASS"
+)
 
 run_firmware_checks() (
     local validation_build_dir
@@ -84,12 +150,16 @@ case "${mode}" in
     --all)
         run_static_checks
         run_firmware_checks
+        run_preview_checks
         ;;
     --static)
         run_static_checks
         ;;
     --firmware)
         run_firmware_checks
+        ;;
+    --preview)
+        run_preview_checks
         ;;
     *)
         usage
