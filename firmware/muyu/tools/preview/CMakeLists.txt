@@ -26,3 +26,15 @@ add_executable(passport_preview passport_preview.c
 target_include_directories(passport_preview PRIVATE "${FIRMWARE_ROOT}/main")
 target_compile_options(passport_preview PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(passport_preview PRIVATE lvgl::lvgl m)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(PP_PROBE "${CMAKE_BINARY_DIR}/catalog_probe")
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/catalog_probe.py" "${PP_PROBE}"
+                COMMAND_ERROR_IS_FATAL ANY)
+add_executable(passport_catalog_test catalog_test.c
+    "${PP_PROBE}/generated/passport_catalog.c" "${PP_PROBE}/components/pp_app_probe/pp_app_probe.c"
+    "${FIRMWARE_ROOT}/main/passport_ui.c" "${FIRMWARE_ROOT}/main/passport_core.c"
+    "${FIRMWARE_ROOT}/main/passport_keyboard.c" "${FIRMWARE_ROOT}/main/muyu_logic.c"
+    "${FIRMWARE_ROOT}/main/font_muyu_22.c" "${FIRMWARE_ROOT}/components/pp_app_muyu/pp_muyu.c")
+target_include_directories(passport_catalog_test PRIVATE "${FIRMWARE_ROOT}/main" "${PP_PROBE}/generated")
+target_compile_options(passport_catalog_test PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(passport_catalog_test PRIVATE lvgl::lvgl m)

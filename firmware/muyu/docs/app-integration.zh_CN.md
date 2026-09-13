@@ -23,6 +23,10 @@
 
 两次链接后的嵌入数字不一致就拒绝交付。直接 `idf.py build` 可能带有缺失或过期容量数据，只供开发迭代；发布 BIN 必须使用完整校验链路。
 
+从成功 CI 下载 `passport-firmware-<SHA>` 到 `<delivery>/firmware`、`passport-preview-<SHA>` 到 `<delivery>/preview`。把 `gh run view <run> --json conclusion,headSha,url` 保存为 `<delivery>/ci-result.json`，把 `gh run view <run> --log` 保存为 `<delivery>/ci-log.txt`。在对应的干净源码提交上执行 `python tools/package_release.py <delivery> --output <dist>`。脚本核验 CI/提交、分区、镜像哈希、测试证据和容量报告，再生成一个易辨认的完整 BIN 与校验后的 ZIP；不会烧录或发布 Release。
+
+主机测试还会实际生成并编译独立脚手架与注册表，在真实 LVGL 下与木鱼样例切换 2,000 次。新应用自己的行为仍应补主机适配与专项测试。C++ 模块要以 C 链接方式导出清单符号，并显式桥接 C 平台函数。
+
 ## 容量与保护边界
 
 - 物理 Flash 8 MiB，程序分区 3 MiB，起点 `0x10000`。

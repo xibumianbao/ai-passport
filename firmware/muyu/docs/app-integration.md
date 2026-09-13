@@ -23,6 +23,10 @@ The capacity tool uses the official ESP-IDF size map. Each app owns one archive.
 
 The two-pass build refuses a stale embedded measurement. Direct `idf.py build` may contain missing/stale metrics and is not a delivery command. Use the complete gate for every distributed BIN.
 
+For a successful CI run, download the `passport-firmware-<SHA>` artifact into `<delivery>/firmware` and `passport-preview-<SHA>` into `<delivery>/preview`. Save `gh run view <run> --json conclusion,headSha,url` as `<delivery>/ci-result.json` and `gh run view <run> --log` as `<delivery>/ci-log.txt`. Run `python tools/package_release.py <delivery> --output <dist>` from this exact clean source commit. The script verifies the CI/head, partition layout, image checksums, test evidence and capacity report, then creates one clearly named full BIN and a checked ZIP. It does not flash or publish a release.
+
+The host gate also compiles an independently generated scaffold and registry, then switches between it and the Muyu fixture 2,000 times using real LVGL. Add suitable host adapters and tests for each new app's own behavior. For C++ modules, export the catalog symbol with C linkage and bridge C platform functions explicitly.
+
 ## Storage boundaries
 
 - Physical Flash: 8 MiB; executable partition: 3 MiB at `0x10000`.

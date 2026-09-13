@@ -25,6 +25,7 @@ void pp_ui_create(void)
 {
     lv_obj_t *screen=box(NULL,0,0,240,320,0xf4f3ef,0);
     s_app=text(screen,10,8,145,&lv_font_montserrat_14,0x151515);
+    lv_label_set_long_mode(s_app,LV_LABEL_LONG_DOT);
     s_battery=text(screen,167,8,63,&lv_font_montserrat_14,0x151515);
     lv_obj_set_style_text_align(s_battery,LV_TEXT_ALIGN_RIGHT,0);
     box(screen,0,29,240,1,0x151515,0);

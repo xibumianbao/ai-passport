@@ -6,7 +6,9 @@
 
 ## 当前状态
 
-当前优先建设 [Passport 多应用底座 0.2.0](firmware/muyu/README.zh_CN.md)：常驻菜单、木鱼/设备状态切换、恢复上次应用、共享 Wi-Fi 配网、BLE 广播、音量、亮度与息屏设置。未来独立联网语音 Agent 将作为一个应用接入。
+当前迭代 [Passport 多应用底座 0.3.0](firmware/muyu/README.zh_CN.md)：设备小键盘 Wi-Fi 配网、自定义应用清单、恢复上次应用、共享系统服务、两种熄屏模式和容量查看。设备状态已移至系统设置。未来独立联网语音 Agent 将作为应用接入。
+
+新增应用按[接入与整包交付指南](firmware/muyu/docs/app-integration.zh_CN.md)执行，第三方玩法先看[小智与尖塔远征评估](firmware/muyu/docs/community-compatibility.zh_CN.md)。所有清单应用与底座一起生成一个经过校验的 full BIN，暂不支持直接安装其他项目的 BIN。
 
 源码位于 `firmware/muyu`，使用 ESP-IDF 5.5.3 与 GitHub Actions 构建。构建、主机测试与实机验收分别记录，首次硬件验收见[测试清单](firmware/muyu/docs/platform-acceptance.zh_CN.md)。当前没有 Voice Gateway 或动态应用安装。
 

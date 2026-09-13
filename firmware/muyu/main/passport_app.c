@@ -349,7 +349,8 @@ static void build_view(pp_view_t *v,const pp_radio_state_t *radio,int battery)
         strcpy(v->title,"STORAGE");
         strcpy(v->rows[0],"Flash and firmware"); strcpy(v->rows[1],"Application usage"); strcpy(v->rows[2],"Settings storage"); strcpy(v->rows[3],"Runtime memory");
         if(pp_build_metrics.valid) snprintf(v->detail,sizeof(v->detail),"Program free: %lu KiB\nShared code counted once.",(unsigned long)((0x300000-pp_build_metrics.image_bytes)/1024));
-        else strcpy(v->detail,"Build metrics unavailable"); break;
+        else strcpy(v->detail,"Build metrics unavailable");
+        break;
     case FLASH_LAYOUT: {
         pp_capacity_t c; pp_capacity_read(&c);
         strcpy(v->title,"FLASH / PROGRAM");
@@ -364,7 +365,8 @@ static void build_view(pp_view_t *v,const pp_radio_state_t *radio,int battery)
     case APP_USAGE:
         strcpy(v->title,"APPLICATION USAGE");
         for(int i=0;i<v->row_count;++i) snprintf(v->rows[i],48,"%s: %lu B",pp_apps[first+i].name,(unsigned long)pp_build_metrics.app_flash[first+i]);
-        if(v->row_count<4) strcpy(v->detail,"Own linked code/assets.\nShared libraries excluded.\nOK: details"); break;
+        if(v->row_count<4) strcpy(v->detail,"Own linked code/assets.\nShared libraries excluded.\nOK: details");
+        break;
     case APP_DETAIL: {
         strcpy(v->title,"APP STORAGE");
         size_t entries=0; nvs_handle_t handle;

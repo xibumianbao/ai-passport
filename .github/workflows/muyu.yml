@@ -75,6 +75,7 @@ jobs:
           cmake --build build/preview --parallel 4
           cd build
           ./preview/passport_preview
+          ./preview/passport_catalog_test
           ./preview/muyu_audio muyu-knock.pcm
           python3 ../tools/preview/write_media.py
       - name: Upload UI previews and generated tone
