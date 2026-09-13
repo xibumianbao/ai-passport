@@ -1,0 +1,87 @@
+name: Muyu firmware
+
+on:
+  push:
+    branches: ["codex/muyu-mvp", "main"]
+    paths: ["firmware/muyu/**", ".github/workflows/muyu.yml"]
+  pull_request:
+    paths: ["firmware/muyu/**", ".github/workflows/muyu.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: muyu-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Repository, firmware-layout and host logic checks
+        working-directory: firmware/muyu
+        run: ./tools/validate.sh --static
+      - name: Check the project workflow
+        run: |
+          actionlint_bin="$(firmware/muyu/tools/install-actionlint.sh)"
+          "$actionlint_bin" .github/workflows/muyu.yml
+
+  firmware:
+    needs: static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build and verify with ESP-IDF 5.5.3
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
+        with:
+          esp_idf_version: v5.5.3
+          target: esp32c3
+          path: firmware/muyu
+          command: idf.py --version && ./tools/validate.sh --firmware
+      - name: Return generated files to the runner user
+        run: sudo chown -R "$(id -u):$(id -g)" firmware/muyu/build
+      - name: Confirm pinned components
+        run: |
+          git diff --exit-code -- firmware/muyu/dependencies.lock
+          python3 firmware/muyu/tools/verify_muyu.py firmware/muyu/build
+          cd firmware/muyu/build
+          sha256sum FoloToy-AI-Passport-full.bin FoloToy-AI-Passport.bin > SHA256SUMS
+      - name: Upload checked firmware and Flash segments
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: muyu-firmware-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            firmware/muyu/build/FoloToy-AI-Passport-full.bin
+            firmware/muyu/build/FoloToy-AI-Passport.bin
+            firmware/muyu/build/bootloader/bootloader.bin
+            firmware/muyu/build/partition_table/partition-table.bin
+            firmware/muyu/build/flash_args
+            firmware/muyu/build/sdkconfig
+            firmware/muyu/build/SHA256SUMS
+            firmware/muyu/build/build-info.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Render the actual LVGL UI and exercise rapid presses
+        working-directory: firmware/muyu
+        run: |
+          cmake -S tools/preview -B build/preview -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/preview --parallel 4
+          cd build
+          ./preview/muyu_preview
+          ./preview/muyu_audio muyu-knock.pcm
+          python3 ../tools/preview/write_media.py
+      - name: Upload UI previews and generated tone
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: muyu-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            firmware/muyu/build/muyu-*.png
+            firmware/muyu/build/muyu-knock.wav
+          if-no-files-found: error
+          retention-days: 30
