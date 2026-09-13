@@ -118,6 +118,9 @@ LICENSE                  Repository license
 
 ## Documentation index
 
+- [Xiaozhi integration research](xiaozhi-research.md) — current console/source evidence, shared voice architecture, identity, capacity and acceptance plan; voice is not implemented yet.
+- [Voice integration boundary](voice-integration.md) — application ownership and future IDA routing.
+
 Repository documentation is organized by function area. `authoritative` documents define development or collaboration requirements; `reference` documents provide background or an index.
 
 - [`docs/development/`](development/README.md) — engineering rules and reusable workflows: the `ai-guide.md`, `engineering/`, `ci/`, and `release/` areas. Its README lists them.

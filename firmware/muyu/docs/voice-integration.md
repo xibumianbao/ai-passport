@@ -2,7 +2,7 @@
 
 # Pet, Xiaozhi and IDA integration boundary
 
-Status: integration plan, not an implemented voice connection. The latest product decision is **the pet becomes Xiaozhi's Avatar; IDA retains a separate application entry and needs speech input/output**. Sharing a speech service does not require both entries to share a conversation, task history or permissions.
+Status: integration plan, not an implemented voice connection. Updated 2026-09-13: **a standalone Xiaozhi application and the pet chat mode share one voice service and the same configured cloud agent, personality, voice and memory settings**. The pet becomes its Avatar; IDA retains a future separate voice application. Cross-entry memory behavior requires a real service test; sharing audio does not share IDA privileges. The current evidence and implementation plan are in [Xiaozhi integration research](xiaozhi-research.md).
 
 ## One character, shared services, separate tasks
 
@@ -10,6 +10,7 @@ Status: integration plan, not an implemented voice connection. The latest produc
 flowchart TD
   A[Pet application: local life and growth] --> V[Original Yaya Avatar]
   X[Future Xiaozhi conversation in the pet app] --> E[Session-scoped listening / thinking / speaking]
+  D[Standalone Xiaozhi application] --> S
   E --> V
   I[Future independent IDA entry] --> S[Shared speech service and audio lease]
   X --> S
@@ -27,7 +28,7 @@ The pet remains useful offline. Its ID, level and form have one owner. Voice ren
 
 Reviewed source: [FoloToy fork at d24fce0](https://github.com/FoloToy/folo-ai-passport-xiaozhi/tree/d24fce080d86d7cc642f71585f6efde40fb99104), based on Xiaozhi 2.4.2, MIT with NOTICE. It targets the same ESP32-C3, 8 MiB Flash, no PSRAM, LCD and codec. The repository recommends IDF 6.0.2 and reports a 5.5.3 build; our actual combination must still be compiled with the pinned platform toolchain.
 
-Adapt protocol and audio components into the pet's conversation mode; do not copy its `app_main`, display, keyboard, Wi-Fi provisioning, OTA or partition table. Its original full 8 MiB BIN replaces this platform and the OTA/resource layout crosses our protected ranges. The first integration should use button-controlled half-duplex, WebSocket and system Wi-Fi/audio. Local wake-word models, MQTT/UDP alternatives, bundled expression packs and OTA are deferred until measured Flash/RAM allow them. Yaya replaces the expression pack, with only one set of small character resources.
+Current upstream 2.5.0 also supports the board as `ai-passport`, and the console can compile that standard source; it does not expose this project's custom source input. Adapt protocol/audio into one platform service used by both entries. Do not import `app_main`, display, keyboard, provisioning, firmware installation or partitions. Preserve configuration discovery/activation separately from OTA installation and store one identity in protected settings. Prefer button-initiated half-duplex and WebSocket only after real discovery confirms availability; upstream may supply/select MQTT instead. Defer wake-word models and bundled expression packs. Reuse Yaya and the system BSP. See the research for exact source revisions, parser bounds and measured-budget gates.
 
 Bind visible states to actual events: recording started → listening; request submitted → thinking; audio playback actually started → speaking; playback drained/stopped → idle. Receiving text or a transport “done” event does not mean audio is playing or the business task succeeded. Stop and join workers before leaving the app; a stop flag alone is insufficient.
 
@@ -40,7 +41,7 @@ Two integration paths should be tested later:
 1. **Preferred if supported by the selected Xiaozhi service:** let Xiaozhi handle listening/speaking and call a narrowly scoped IDA server tool. The standalone IDA entry selects an IDA task mode; pet chat may optionally use the same tool. This avoids maintaining a second full speech pipeline.
 2. **Fallback:** a shared voice gateway provides ASR/TTS and routes text to IDA. Both app entries reuse the device microphone/playback service, while sessions and task IDs remain separate.
 
-The fork's device-side MCP support does not establish that a particular cloud account offers custom IDA tools or standalone ASR/TTS APIs. First verify that capability, then run one small end-to-end speech → IDA → final answer → speech request before porting large dependencies. The gateway is a deployed service; normal device operation must not depend on an always-on personal computer.
+Device MCP and the cloud MCP endpoint are distinct. The official external-tool sample supports a future IDA server adapter, but neither a successful IDA voice round trip nor standalone ASR/TTS APIs have been verified. Model-selected tools also do not guarantee deterministic routing from an IDA app entry. Verify those boundaries and one speech → IDA → verified answer → speech request before adding dependencies; use a dedicated gateway if forced routing is unavailable. Normal device operation must not depend on an always-on personal computer.
 
 IDA progress updates may drive a waiting indicator but are not spoken as the final answer. Reconnect reuses task/session IDs; replayed artifacts are deduplicated. Verify the authoritative task snapshot and the saved answer for that task, then enqueue TTS in bounded chunks. A transport HTTP 200, completed historical event or report reference alone is not content acceptance. An explicit user cancellation stops microphone/playback immediately and requests cancellation of the same remote task, with a bounded confirmation check; an unconfirmed cancellation must remain visibly unconfirmed.
 
@@ -48,14 +49,14 @@ IDA progress updates may drive a waiting indicator but are not spoken as the fin
 
 There is one statically linked program, not three independently flashed BINs. Application entries and service providers share compiled libraries. Keep the existing 3 MiB app partition, 24 KiB settings at `0x310000` and identity at `0x356000`. Unassigned Flash cannot silently become executable space.
 
-The current pet build reserves at least 1.25 MiB of program headroom. This is a gate, not a prediction of final Xiaozhi/IDA size. Measure the combined link after each voice milestone; count Wi-Fi, TLS, codec, common fonts and Avatar once. Keep audio queues bounded, release capture/playback buffers on stop, measure internal heap minimum and largest block, and test Wi-Fi/BLE/audio/display contention on the device. Runtime RAM can be the limiting resource even with ample Flash.
+Platform 0.4.1 has 1,579,840 B of program headroom. The existing 1.25 MiB gate reserves future voice capacity during the offline-pet phase; voice implementation must explicitly account for consuming it, not silently disable the gate. This is not a prediction of final Xiaozhi/IDA size. Measure each combined link, counting shared components once. Bound queues, release buffers on stop, measure internal heap minimum/largest block and test Wi-Fi/BLE/audio/display contention. RAM can limit operation even with ample Flash.
 
 Do not add resources above protected identity while continuing to use a contiguous full BIN at `0x0`: padding would overwrite protected ranges. Any future resource partition requires its own reviewed segmented delivery flow.
 
 ## Later milestones
 
 1. Accept this offline pet BIN and its persistence, screen modes, memory and visual behavior.
-2. Integrate minimal Xiaozhi speech into the same pet, including actual recording, playback, cancellation, dark operation and stable app switching.
+2. Validate discovery and audio ownership, deliver standalone Xiaozhi, then connect the same service to the pet; verify recording, playback, cancellation, dark operation, switching and shared cloud memory.
 3. Validate an IDA speech route with a server adapter; add its independent entry, task status and cancellation behavior.
 4. Add optional pet-to-IDA tool calling only after the child-facing task permissions and failure behavior are explicit.
 

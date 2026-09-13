@@ -115,6 +115,9 @@ LICENSE                  仓库许可证
 
 ## 文档索引
 
+- [小智融合研究与实施方案](xiaozhi-research.zh_CN.md) — 当前控制台与源码证据、共享语音架构、身份保存、容量和验收计划；语音尚未实现。
+- [语音接入边界](voice-integration.zh_CN.md) — 应用所有权与后续 IDA 路由。
+
 本仓库文档按功能域组织。`authoritative` 指对开发与协作有约束力的文档；`参考` 指提供背景或索引的文档。
 
 - [`docs/development/`](development/README.zh_CN.md) — 工程规则与可复用工作流：`ai-guide.md`、`engineering/`、`ci/`、`release/` 区。其 README 列明它们。

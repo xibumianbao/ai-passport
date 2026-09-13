@@ -8,7 +8,7 @@
 
 当前迭代 [Passport 多应用底座 0.4.1](firmware/muyu/README.zh_CN.md)：Wi-Fi/BLE 改为电量旁的顶部图标，应用区域扩大到 240×265。保留设备小键盘配网、自定义应用清单、恢复上次应用、两种熄屏和容量查看，以及[芽芽电子宠物 0.1.0](firmware/muyu/docs/pet-v1.zh_CN.md)的自动生活、一键喂食／陪玩／休息、升级进化和小型校验存档。宠物初版已获用户效果认可，新状态栏布局待实机验收。
 
-后续按[语音接入规划](firmware/muyu/docs/voice-integration.zh_CN.md)，宠物与小智融合，IDA 保留独立语音应用入口，可评估共用小智语音服务。本次只实现离线宠物，不接入小智或 IDA 语音。
+已完成[小智融合深度研究与实施方案](firmware/muyu/docs/xiaozhi-research.zh_CN.md)：独立“小智”与宠物聊天共用一份语音服务、同一云端角色及记忆配置，IDA 保留后续独立语音入口。控制台已支持 AI Passport 的标准 2.5.0 固件，但组合底座仍由本仓库编译；本次只更新研究与规划，小智／IDA 语音尚未接通。架构入口见[语音接入规划](firmware/muyu/docs/voice-integration.zh_CN.md)。
 
 新增应用按[接入与整包交付指南](firmware/muyu/docs/app-integration.zh_CN.md)执行，第三方玩法先看[小智与尖塔远征评估](firmware/muyu/docs/community-compatibility.zh_CN.md)。所有清单应用与底座一起生成一个经过校验的 full BIN，暂不支持直接安装其他项目的 BIN。
 
