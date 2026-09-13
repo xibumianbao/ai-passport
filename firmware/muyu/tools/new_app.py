@@ -26,7 +26,7 @@ static void create_ui(lv_obj_t *parent)
     s_label=lv_label_create(parent); lv_obj_set_pos(s_label,16,40); lv_obj_set_width(s_label,208);
 }
 static void render_ui(void) { lv_label_set_text_fmt(s_label,"Key events: %u",s_count); }
-const pp_app_module_t SYMBOL={start,stop,NULL,key,NULL,create_ui,render_ui};
+const pp_app_module_t SYMBOL={.start=start,.stop=stop,.key=key,.create_ui=create_ui,.render_ui=render_ui};
 '''.replace('SYMBOL',app['symbol'])
     folder.mkdir(parents=True)
     (folder/(component+'.c')).write_text(code,encoding='utf-8')

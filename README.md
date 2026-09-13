@@ -6,7 +6,9 @@
 
 ## 当前状态
 
-当前迭代 [Passport 多应用底座 0.3.0](firmware/muyu/README.zh_CN.md)：设备小键盘 Wi-Fi 配网、自定义应用清单、恢复上次应用、共享系统服务、两种熄屏模式和容量查看。设备状态已移至系统设置。未来独立联网语音 Agent 将作为应用接入。
+当前迭代 [Passport 多应用底座 0.4.0](firmware/muyu/README.zh_CN.md)：保留设备小键盘 Wi-Fi 配网、自定义应用清单、恢复上次应用、两种熄屏和容量查看，新增[芽芽电子宠物 0.1.0 测试版](firmware/muyu/docs/pet-v1.zh_CN.md)。宠物自己生活，一键喂食／陪玩／休息，自动赚币、升级、进化，使用小型像素素材与双份校验存档；新版本待实机验收。
+
+后续按[语音接入规划](firmware/muyu/docs/voice-integration.zh_CN.md)，宠物与小智融合，IDA 保留独立语音应用入口，可评估共用小智语音服务。本次只实现离线宠物，不接入小智或 IDA 语音。
 
 新增应用按[接入与整包交付指南](firmware/muyu/docs/app-integration.zh_CN.md)执行，第三方玩法先看[小智与尖塔远征评估](firmware/muyu/docs/community-compatibility.zh_CN.md)。所有清单应用与底座一起生成一个经过校验的 full BIN，暂不支持直接安装其他项目的 BIN。
 

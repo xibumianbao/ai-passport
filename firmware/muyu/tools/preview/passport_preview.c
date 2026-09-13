@@ -57,7 +57,7 @@ int main(void)
     const char *rows[]={"Sound","Brightness","Screen timeout","Screen-off mode","Device status","Storage"};
     for(int i=0;i<6;++i) strcpy(v.rows[i],rows[i]);
     pp_ui_render(&v); tick(200); snapshot("passport-settings.rgb");
-    v.row_count=1; v.selected=0; strcpy(v.title,"APPLICATIONS"); strcpy(v.rows[0],"* Muyu");
+    v.row_count=2; v.selected=0; strcpy(v.title,"APPLICATIONS"); strcpy(v.rows[0],"* Muyu"); strcpy(v.rows[1],"Yaya Pet");
     strcpy(v.detail,"Your custom apps.\nLast app opens on boot.");
     pp_ui_render(&v); tick(200); snapshot("passport-apps.rgb");
     v.keyboard=true; v.keyboard_secret=true; v.keyboard_length=12; v.keyboard_page=0; v.keyboard_selected=6;
@@ -74,7 +74,7 @@ int main(void)
     strcpy(v.detail,PP_PREVIEW_CAPACITY);
     pp_ui_render(&v); tick(200); snapshot("passport-storage.rgb");
     strcpy(v.title,"DEVICE STATUS");
-    strcpy(v.detail,"Wi-Fi: ONLINE\nIP: 192.0.2.10\nBLE: OFF\nVolume: 65%\nBrightness: 80%\nBattery: 99%\nPassport 0.3.0\n\nOK: back");
+    strcpy(v.detail,"Wi-Fi: ONLINE\nIP: 192.0.2.10\nBLE: OFF\nVolume: 65%\nBrightness: 80%\nBattery: 99%\nPassport " PP_VERSION "\n\nOK: back");
     pp_ui_render(&v); tick(200); snapshot("passport-device.rgb");
     lv_mem_monitor_t before,after; lv_mem_monitor(&before);
     for(unsigned i=0;i<5000;++i) {

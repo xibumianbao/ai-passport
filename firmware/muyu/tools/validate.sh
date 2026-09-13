@@ -37,6 +37,21 @@ run_static_checks() {
     "${test_dir}/test_passport_core"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g -Imain         tests/test_passport_extensions.c main/passport_keyboard.c main/passport_screen.c main/passport_core.c         -o "${test_dir}/test_passport_extensions"
     "${test_dir}/test_passport_extensions"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Icomponents/pp_app_pet/include -Icomponents/pp_avatar/include \
+        tests/test_pet.c components/pp_app_pet/pp_pet.c components/pp_avatar/pp_avatar.c \
+        components/pp_avatar/pp_pixel_art.c components/pp_avatar/pp_pixel_buffer.c -o "${test_dir}/test_pet"
+    "${test_dir}/test_pet"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g \
+        -Itests/pet_stubs -Icomponents/pp_app_pet/include \
+        tests/test_pet_store.c components/pp_app_pet/pp_pet.c components/pp_app_pet/pp_pet_store.c \
+        -o "${test_dir}/test_pet_store"
+    "${test_dir}/test_pet_store"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Icomponents/pp_avatar/include \
+        tools/preview/pet_art_export.c components/pp_avatar/pp_pixel_art.c components/pp_avatar/pp_pixel_buffer.c \
+        -o "${test_dir}/pet_art_export"
+    "${test_dir}/pet_art_export" > "${test_dir}/pp_pet_room_i4.c"
+    python3 tools/check_pet_assets.py "${test_dir}/pp_pet_room_i4.c"
     python3 tools/generate_catalog.py
     python3 tests/test_capacity.py
     python3 tests/test_verify_firmware.py

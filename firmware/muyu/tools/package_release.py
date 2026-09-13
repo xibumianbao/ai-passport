@@ -25,7 +25,8 @@ def package(source,output):
     assert capacity['image_bytes']==(fw/'FoloToy-AI-Passport.bin').stat().st_size
     assert capacity['program_free']==0x300000-capacity['image_bytes']
     log=(source/'ci-log.txt').read_text(encoding='utf-8-sig')
-    required=['Passport core: PASS','Passport extensions: PASS','Passport UI: PASS','Application scaffold: PASS','Capacity report: PASS','Firmware build: PASS']
+    required=['Passport core: PASS','Passport extensions: PASS','Passport UI: PASS','Application scaffold: PASS','Capacity report: PASS','Firmware build: PASS',
+              'Pet logic: PASS','Pet NVS adapter: PASS','Pet assets: PASS','Pet lifecycle: PASS','Pet UI: PASS','Pet capacity: PASS']
     evidence=[line for line in log.splitlines() if any(k in line for k in required) and 'echo ' not in line]
     for key in required: assert any(key in line for line in evidence), 'Missing '+key
     name='ai-passport-platform-v'+info['version']+'-'+info['source_commit'][:7]
@@ -42,6 +43,8 @@ def package(source,output):
         for f in ['build-info.json','capacity-report.json']: z.write(fw/f,f)
         z.write(source/'ci-result.json','ci-result.json')
         for f in ['platform-acceptance.md','platform-acceptance.zh_CN.md','app-integration.md','app-integration.zh_CN.md','community-compatibility.md','community-compatibility.zh_CN.md']:
+            z.write(root/'docs'/f,'docs/'+f)
+        for f in ['pet-v1.md','pet-v1.zh_CN.md','voice-integration.md','voice-integration.zh_CN.md']:
             z.write(root/'docs'/f,'docs/'+f)
         for f in sorted((source/'preview').glob('passport-*.png')): z.write(f,'preview/'+f.name)
     with zipfile.ZipFile(zpath) as z:

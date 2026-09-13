@@ -42,3 +42,15 @@ add_executable(passport_catalog_test catalog_test.c
 target_include_directories(passport_catalog_test PRIVATE "${FIRMWARE_ROOT}/main" "${PP_PROBE}/generated")
 target_compile_options(passport_catalog_test PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(passport_catalog_test PRIVATE lvgl::lvgl m)
+set(PET_ROOT "${FIRMWARE_ROOT}/components/pp_app_pet")
+set(AVATAR_ROOT "${FIRMWARE_ROOT}/components/pp_avatar")
+add_executable(pet_preview pet_preview.c
+    "${PET_ROOT}/pp_pet.c" "${PET_ROOT}/pp_pet_app.c" "${PET_ROOT}/pp_pet_ui.c"
+    "${AVATAR_ROOT}/pp_avatar.c" "${AVATAR_ROOT}/pp_pixel_art.c" "${AVATAR_ROOT}/pp_pixel_buffer.c"
+    "${FIRMWARE_ROOT}/assets/images/pp_pet_room_i4.c" "${FIRMWARE_ROOT}/main/font_pet_14.c"
+    "${FIRMWARE_ROOT}/main/passport_ui.c" "${FIRMWARE_ROOT}/main/passport_core.c"
+    "${FIRMWARE_ROOT}/main/passport_keyboard.c" "${FIRMWARE_ROOT}/main/muyu_logic.c"
+    "${FIRMWARE_ROOT}/main/font_muyu_22.c" "${FIRMWARE_ROOT}/components/pp_app_muyu/pp_muyu.c")
+target_include_directories(pet_preview PRIVATE "${FIRMWARE_ROOT}/main" "${PET_ROOT}/include" "${AVATAR_ROOT}/include")
+target_compile_options(pet_preview PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(pet_preview PRIVATE lvgl::lvgl m)

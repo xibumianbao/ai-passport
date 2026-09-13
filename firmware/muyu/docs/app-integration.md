@@ -4,6 +4,14 @@
 
 Version 0.3.0 uses one statically linked firmware, one foreground custom app and shared system services. A community full BIN is a replacement operating image, not a plugin. Do not concatenate BINs, create an app partition per menu entry, or call another project's `app_main`.
 
+Platform 0.4.0 keeps this model and adds [Yaya Pet](pet-v1.md). Modules may provide
+`tick(ctx, elapsed_ms, showing)` for logic outside rendering. The control worker
+calls it about every 20 ms, outside the LVGL lock; `showing` requires a lit screen,
+app page and focus. Handle visibility transitions, discard catch-up on resume,
+and never touch UI in this callback. Use designated module initializers so future
+optional callbacks default to null. [Voice integration](voice-integration.md)
+records the pet/Xiaozhi and independent IDA direction.
+
 ## Repeatable development path
 
 1. Read the current platform guide, `apps/catalog.json`, `passport_apps.h`, `passport_core.h` and the Muyu component. Start from the latest tested platform commit, not the old standalone Muyu branch. Preserve unrelated work; use a `codex/*` branch.

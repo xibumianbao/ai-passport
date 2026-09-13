@@ -54,4 +54,4 @@ static void render_ui(void)
         lv_anim_set_values(&a,82,88); lv_anim_set_duration(&a,50); lv_anim_set_playback_duration(&a,100); lv_anim_start(&a);
     }
 }
-const pp_app_module_t pp_muyu_module={start,stop,focus,key,NULL,create_ui,render_ui};
+const pp_app_module_t pp_muyu_module={.start=start,.stop=stop,.focus=focus,.key=key,.create_ui=create_ui,.render_ui=render_ui};

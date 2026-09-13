@@ -26,6 +26,13 @@ class CapacityTest(unittest.TestCase):
     def test_absent_archive_is_not_zero_usage(self):
         self.apps[0]['component']='missing'
         with self.assertRaises(AssertionError): analyze(self.raw,self.apps,400)
+    def test_shared_avatar_counts_once(self):
+        self.raw['memory_types']['Flash Code']['sections']['.flash.text']['archives']['libpp_avatar.a']={'size':80}
+        self.raw['memory_types']['DIRAM']['sections']['.dram0.bss']['archives']['libpp_avatar.a']={'size':4}
+        r=analyze(self.raw,self.apps,400)
+        self.assertEqual(r['shared_components'],[{'component':'pp_avatar','flash_bytes':80,'static_ram_bytes':4}])
+        self.assertEqual(r['apps'][0]['flash_bytes'],130)
+        self.assertEqual(r['shared_and_image_overhead_bytes'],270)
     def test_overflow_is_rejected(self):
         with self.assertRaises(AssertionError): analyze(self.raw,self.apps,0x300001)
     def test_catalog_registration_and_duplicates(self):

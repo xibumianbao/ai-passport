@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import re
 from verify_firmware import parse_partition_table, Partition
 
 folder = Path(sys.argv[1] if len(sys.argv) > 1 else 'build').resolve()
@@ -18,8 +19,12 @@ assert 'CONFIG_IDF_TARGET="esp32c3"' in config
 assert 'CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y' in config
 assert 'CONFIG_BT_ENABLED=y' in config
 assert 'CONFIG_BT_NIMBLE_ENABLED=y' in config
+root=Path(__file__).resolve().parent.parent
+version=re.search(r'#define PP_VERSION "([^"]+)"',(root/'main/passport_core.h').read_text()).group(1)
+assert 'set(PROJECT_VER "'+version+'")' in (root/'CMakeLists.txt').read_text()
+assert 'CONFIG_LV_BIN_DECODER_RAM_LOAD=y' not in config
 info = {
-    'application': 'passport-platform', 'version': '0.3.0',
+    'application': 'passport-platform', 'version': version,
     'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
     'target': 'esp32c3', 'esp_idf': '5.5.3', 'flash_size_bytes': 8 * 1024 * 1024,
     'merged_file': image.name, 'merged_offset': '0x0', 'merged_bytes': len(data),

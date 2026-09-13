@@ -4,6 +4,15 @@
 
 # Changelog
 
+## 0.4.0 - Pet 0.1.0 test build
+
+- Add a low-interaction pixel pet: autonomous daily life, feed/play/rest, levels and one evolution.
+- Add two small CRC-checked saves, failure-safe transactions and pause on menu/screen-off/app switch.
+- Reuse a 16-color room, one small sprite buffer and subset font; enforce future voice headroom.
+- Add independent module ticks and a session-scoped Avatar contract for later Xiaozhi integration.
+- Plan IDA as a separate voice-enabled entry; neither network integration is included in this build.
+- Add model/persistence/art tests and real LVGL switching previews; hardware acceptance remains pending.
+
 ## 0.3.0
 
 - Replace phone provisioning with an on-device Wi-Fi keyboard, bounded attempts and save-on-success.

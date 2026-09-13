@@ -1,8 +1,23 @@
 [简体中文](README.zh_CN.md) · **English**
 
-# Passport multi-application platform 0.3.0
+# Passport multi-application platform 0.4.0
 
-A persistent system shell for FoloToy AI Passport. Applications contains only custom modules; Muyu is the current example. Device status and capacity belong to Settings. The last stable application resumes after restart, with first/failed startup falling back to the application list.
+A persistent system shell for FoloToy AI Passport. Applications contains Muyu and the new Yaya Pet test application. Device status and capacity belong to Settings. The last stable application resumes after restart, with first/failed startup falling back to the application list.
+
+## Yaya Pet test application
+
+Open Applications → Yaya Pet. Yaya lives automatically; up/down select Feed, Play
+or Rest, and short OK performs one action. Feed combines buying and eating;
+insufficient coins provide free basic food. Daily activity earns coins/XP, level
+3 evolves the same character, and two tiny checked saves preserve growth.
+Menu, screen-off and app switching pause growth and invisible purchases.
+There are no offline penalties or repeated-click minigames.
+
+The [pet guide and hardware checklist](docs/pet-v1.md) explains the exact rules,
+small pixel resources and tests. [Future voice integration](docs/voice-integration.md)
+keeps the pet with Xiaozhi and IDA as a separate voice-enabled entry. Neither
+voice integration is implemented in this test build. Use the capacity report
+from the exact delivered BIN; hardware acceptance remains pending.
 
 ## Controls and Wi-Fi
 

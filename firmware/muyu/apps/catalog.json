@@ -9,6 +9,15 @@
       "component": "pp_app_muyu",
       "symbol": "pp_muyu_module",
       "namespace": "app_muyu"
+    },
+    {
+      "id": "pet",
+      "name": "Yaya Pet",
+      "version": "0.1.0",
+      "author": "AI Passport",
+      "component": "pp_app_pet",
+      "symbol": "pp_pet_module",
+      "namespace": "app_pet"
     }
   ]
 }

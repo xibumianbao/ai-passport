@@ -390,7 +390,7 @@ static void build_view(pp_view_t *v,const pp_radio_state_t *radio,int battery)
 }
 static void control_worker(void *unused)
 {
-    (void)unused; int battery=-1; int64_t battery_at=0,render_at=0;
+    (void)unused; int battery=-1; int64_t battery_at=0,render_at=0,logic_at=esp_timer_get_time();
     s_last_key=esp_timer_get_time();
     for(;;) {
         input_event_t e;
@@ -439,6 +439,13 @@ static void control_worker(void *unused)
         bool editing=s_page==SSID || s_page==PASSWORD || s_page==CONNECTING || s_page==SCAN;
         if(s_screen==PP_SCREEN_ON && timeout && !editing && now-s_last_key>=(int64_t)timeout*1000000)
             turn_screen_off(s_settings.screen_mode==1);
+        if(s_runtime.active>=0) {
+            const pp_app_module_t *module=pp_modules[s_runtime.active];
+            uint32_t elapsed=(uint32_t)((now-logic_at)/1000);
+            if(module->tick) module->tick(module->ctx,elapsed>1000?1000:elapsed,
+                s_screen==PP_SCREEN_ON && s_page==APP && s_runtime.focused);
+        }
+        logic_at=now;
         if(now>=battery_at) { battery=s_battery_ok?bsp_battery_soc():-1; battery_at=now+30000000; }
         if(s_screen==PP_SCREEN_ON && now>=render_at && bsp_lvgl_lock(20)) {
             pp_view_t v; build_view(&v,&radio,battery); pp_ui_render(&v);
