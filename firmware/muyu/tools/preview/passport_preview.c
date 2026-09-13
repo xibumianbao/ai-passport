@@ -2,6 +2,7 @@
 #include "passport_ui.h"
 #include "passport_keyboard.h"
 #include "passport_audio.h"
+#include "capacity_preview.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -70,7 +71,7 @@ int main(void)
     strcpy(v.detail,"Keep running: voice,\nnetwork and keys stay.\nHold OK: light + menu.\nNot deep sleep.");
     pp_ui_render(&v); tick(200); snapshot("passport-screen-mode.rgb");
     v.row_count=0; strcpy(v.title,"FLASH / PROGRAM");
-    strcpy(v.detail,"Flash total: 8192 KiB\nAllocated: 3176 KiB\nUnassigned: 5016 KiB\n\nProgram: SAMPLE / 3072\nCan grow: see build\nSystem/shared: see build\n\nUnassigned is not an\napp install partition.");
+    strcpy(v.detail,PP_PREVIEW_CAPACITY);
     pp_ui_render(&v); tick(200); snapshot("passport-storage.rgb");
     strcpy(v.title,"DEVICE STATUS");
     strcpy(v.detail,"Wi-Fi: ONLINE\nIP: 192.0.2.10\nBLE: OFF\nVolume: 65%\nBrightness: 80%\nBattery: 99%\nPassport 0.3.0\n\nOK: back");

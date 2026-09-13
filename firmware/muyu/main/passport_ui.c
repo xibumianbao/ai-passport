@@ -34,6 +34,7 @@ void pp_ui_create(void)
     s_content=box(screen,0,60,240,235,0xf4f3ef,0);
     s_drawer=box(screen,28,35,212,255,0x151515,0);
     s_title=text(s_drawer,14,12,184,&lv_font_montserrat_20,0xffffff);
+    lv_label_set_long_mode(s_title,LV_LABEL_LONG_DOT);
     for(int i=0;i<6;++i) {
         s_rows[i]=box(s_drawer,8,44+i*31,196,29,0x151515,3);
         s_labels[i]=text(s_rows[i],7,6,182,&lv_font_montserrat_14,0xffffff);
@@ -96,7 +97,9 @@ void pp_ui_render(const pp_view_t *v)
     } else {
         lv_obj_add_flag(s_keyboard,LV_OBJ_FLAG_HIDDEN);
         if(v->menu) {
-            lv_obj_remove_flag(s_drawer,LV_OBJ_FLAG_HIDDEN); lv_label_set_text(s_title,v->title);
+            lv_obj_remove_flag(s_drawer,LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_text_font(s_title,strlen(v->title)>12 ? &lv_font_montserrat_14 : &lv_font_montserrat_20,0);
+            lv_label_set_text(s_title,v->title);
             for(int i=0;i<6;++i) {
                 if(i>=v->row_count) { lv_obj_add_flag(s_rows[i],LV_OBJ_FLAG_HIDDEN); continue; }
                 lv_obj_remove_flag(s_rows[i],LV_OBJ_FLAG_HIDDEN);

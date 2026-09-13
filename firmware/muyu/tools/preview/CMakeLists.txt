@@ -27,6 +27,10 @@ target_include_directories(passport_preview PRIVATE "${FIRMWARE_ROOT}/main")
 target_compile_options(passport_preview PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(passport_preview PRIVATE lvgl::lvgl m)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/capacity_preview.py"
+                "${FIRMWARE_ROOT}/build/capacity-report.json" "${CMAKE_BINARY_DIR}/capacity_preview.h"
+                COMMAND_ERROR_IS_FATAL ANY)
+target_include_directories(passport_preview PRIVATE "${CMAKE_BINARY_DIR}")
 set(PP_PROBE "${CMAKE_BINARY_DIR}/catalog_probe")
 execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/catalog_probe.py" "${PP_PROBE}"
                 COMMAND_ERROR_IS_FATAL ANY)
