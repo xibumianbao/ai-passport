@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define PP_VERSION "0.2.0"
+#define PP_VERSION "0.3.0"
 #define PP_LONG_PRESS_MS 800
 #define PP_MAX_RESOURCES 8
 typedef enum { PP_UP, PP_DOWN, PP_OK, PP_MENU, PP_NONE } pp_key_t;
@@ -40,7 +40,7 @@ bool pp_session_valid(const pp_runtime_t *r, uint32_t generation);
 int pp_resource_acquire(pp_runtime_t *r, pp_cancel_fn cancel, void *ctx);
 void pp_resource_release(pp_runtime_t *r, int slot, uint32_t generation);
 
-typedef struct { uint8_t volume, brightness, timeout; bool wifi, ble; } pp_settings_t;
+typedef struct { uint8_t volume, brightness, timeout, screen_mode; bool wifi, ble; } pp_settings_t;
 void pp_settings_defaults(pp_settings_t *s);
 void pp_settings_validate(pp_settings_t *s);
 unsigned pp_timeout_seconds(uint8_t value);

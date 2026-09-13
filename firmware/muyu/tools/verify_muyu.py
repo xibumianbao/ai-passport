@@ -19,7 +19,7 @@ assert 'CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y' in config
 assert 'CONFIG_BT_ENABLED=y' in config
 assert 'CONFIG_BT_NIMBLE_ENABLED=y' in config
 info = {
-    'application': 'passport-platform', 'version': '0.2.0',
+    'application': 'passport-platform', 'version': '0.3.0',
     'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
     'target': 'esp32c3', 'esp_idf': '5.5.3', 'flash_size_bytes': 8 * 1024 * 1024,
     'merged_file': image.name, 'merged_offset': '0x0', 'merged_bytes': len(data),

@@ -35,6 +35,10 @@ run_static_checks() {
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g -Imain \
         tests/test_passport_core.c main/passport_core.c -o "${test_dir}/test_passport_core"
     "${test_dir}/test_passport_core"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -g -Imain         tests/test_passport_extensions.c main/passport_keyboard.c main/passport_screen.c main/passport_core.c         -o "${test_dir}/test_passport_extensions"
+    "${test_dir}/test_passport_extensions"
+    python3 tools/generate_catalog.py
+    python3 tests/test_capacity.py
     python3 tests/test_verify_firmware.py
     rm -rf "${test_dir}"
     echo "Host tests: PASS"
@@ -54,6 +58,9 @@ run_firmware_checks() (
     SDKCONFIG_DEFAULTS="${repo_root}/sdkconfig.defaults" \
         idf.py -B "${validation_build_dir}" \
         -D "SDKCONFIG=${validation_build_dir}/sdkconfig" build
+    python3 tools/build_capacity.py "${validation_build_dir}"
+    idf.py -B "${validation_build_dir}" build
+    python3 tools/build_capacity.py "${validation_build_dir}" --verify
     idf.py -B "${validation_build_dir}" merge-bin \
         -o "${validation_build_dir}/FoloToy-AI-Passport-full.bin"
     python3 tools/verify_firmware.py "${validation_build_dir}"
@@ -64,7 +71,7 @@ run_firmware_checks() (
     # Preserve the exact checked segments for safe device flashing and local
     # readback verification. Never export NVS or the per-device cardid region.
     mkdir -p "${repo_root}/build/bootloader" "${repo_root}/build/partition_table"
-    for relative in flash_args sdkconfig FoloToy-AI-Passport.bin \
+    for relative in flash_args sdkconfig capacity-report.json FoloToy-AI-Passport.bin \
                     bootloader/bootloader.bin partition_table/partition-table.bin; do
         install -m 0644 "${validation_build_dir}/${relative}" "${repo_root}/build/${relative}"
     done

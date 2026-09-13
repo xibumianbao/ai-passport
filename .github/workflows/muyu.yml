@@ -65,6 +65,7 @@ jobs:
             firmware/muyu/build/sdkconfig
             firmware/muyu/build/SHA256SUMS
             firmware/muyu/build/build-info.json
+            firmware/muyu/build/capacity-report.json
           if-no-files-found: error
           retention-days: 30
       - name: Render the actual LVGL UI and exercise rapid presses

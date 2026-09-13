@@ -102,12 +102,13 @@ void pp_resource_release(pp_runtime_t *r, int slot, uint32_t generation)
     if (slot >= 0 && slot < PP_MAX_RESOURCES && r->resources[slot].generation == generation)
         memset(&r->resources[slot], 0, sizeof(r->resources[slot]));
 }
-void pp_settings_defaults(pp_settings_t *s) { *s = (pp_settings_t){65, 80, 1, true, false}; }
+void pp_settings_defaults(pp_settings_t *s) { *s = (pp_settings_t){65, 80, 1, 0, true, false}; }
 void pp_settings_validate(pp_settings_t *s)
 {
     if (s->volume > 100) s->volume = 65;
     if (s->brightness < 10 || s->brightness > 100) s->brightness = 80;
     if (s->timeout > 3) s->timeout = 1;
+    if (s->screen_mode > 1) s->screen_mode = 0;
 }
 unsigned pp_timeout_seconds(uint8_t value)
 {

@@ -1,12 +1,13 @@
 #pragma once
-#include "passport_core.h"
+#include "passport_apps.h"
 typedef struct {
-    bool menu, muyu, audio_ok, buttons_ok;
+    bool menu, keyboard, buttons_ok;
     int battery, selected, row_count;
-    uint32_t count;
-    char app[24], title[24], status[32], detail[192];
-    char rows[6][40];
+    unsigned keyboard_page, keyboard_selected, keyboard_length;
+    bool keyboard_secret;
+    const pp_app_module_t *module;
+    char app[24], title[24], status[40], detail[320], input_name[33], input_text[64];
+    char rows[6][48], footer[64];
 } pp_view_t;
-/* One permanent object tree. All calls require the LVGL lock on the board. */
 void pp_ui_create(void);
-void pp_ui_render(const pp_view_t *view, bool strike);
+void pp_ui_render(const pp_view_t *view);

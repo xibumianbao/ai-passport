@@ -1,44 +1,38 @@
-<p align="right"><strong>简体中文</strong> · <a href="README.md">English</a></p>
+[English](README.md) · **简体中文**
 
-# Passport 多应用底座 0.2.0
+# Passport 多应用底座 0.3.0
 
-面向 FoloToy AI Passport 的常驻系统底座，内置木鱼和设备状态两个注册应用。正常开机恢复上次成功启动的应用；首次启动、应用缺失或连续启动失败时进入应用菜单。保留历史目录 `firmware/muyu` 以兼容构建入口。
+面向 FoloToy AI Passport 的常驻底座。Applications 只放自定义应用，目前内置木鱼样例；设备状态和容量统一归入 Settings。正常重启恢复最近稳定启动的应用；首次或失败启动回到应用列表。
 
-## 操作
+## 操作与设备配网
 
-- 长按 OK 800 毫秒进入系统菜单；菜单中长按返回上一级。
-- 上/下选择，短按 OK 松手确认。长按不会额外触发确认或敲击。
-- 木鱼：上/下按下立即敲击，OK 松手敲击；切换应用保留计数，重启清零。
-- 设置：Wi-Fi、BLE 广播、音量 0–100、亮度 10–100、息屏时间（关闭/60/120/300 秒）、诊断。
-- 息屏后第一次完整按键操作只唤醒。息屏关闭背光并暂停应用，尚非深度休眠；网络仍由系统管理。
-- 应用稳定运行 10 秒后记住其身份。设置调整停止 1 秒或确认后保存；连续两次启动观察窗口被中断则回到菜单。
+- 长按 OK 800 毫秒打开系统抽屉，菜单中长按返回。上下选择，短按 OK 松手确认。
+- Settings → Wi-Fi → Find and join network：选 2.4 GHz 网络，在设备小键盘输入密码，选 GO 连接。不需要手机，也不启动热点或网页配网门户。
+- 键盘分 abc / ABC / 123 / #+= 页，提供 SP 空格、DEL 删除、GO 提交、BACK 返回。支持全部可打印 ASCII 密码字符。上下选择字符，OK 输入；长按 OK 始终返回，不提交。
+- 最多显示 12 个去重网络；隐藏网络可手输名称，最长 32 字节；密码支持 8–63 个 ASCII 字符。开放网络免密码，WEP 和企业认证暂不支持。网络名称原样保留，中文等名称可能缺少显示字形。
+- 连接最多等待 25 秒，获得 IP 后才保存；输错不覆盖上一份已保存网络。重试输入保留但始终掩码显示，取消/成功即清理。保存一个网络供重启复用。ONLINE 表示获得 IP，不代表已额外检测互联网可达。
+- Wi-Fi 属于系统，应用切换保持连接并清理旧业务会话。BLE 仍为可开关的 Passport 不可连接广播，不支持配对或蓝牙音频。
 
-## 共享联网
+## 两种熄屏行为
 
-一个系统任务统一管理 Wi-Fi，切换应用保留连接与配置。应用会话带代次令牌并登记取消回调；进入菜单或切换会使旧令牌失效并回收资源。未来的 HTTP/录音适配器必须登记取消动作，在控制任务中校验令牌。共享连接不继承旧应用云端身份。
+Screen-off mode 提供 Pause app（默认，兼容 0.2.0）和 Keep app running，用于应用页自动熄屏。Screen timeout 保持关闭/60/120/300 秒；停留系统菜单超时始终暂停应用。
 
-进入 Settings > Wi-Fi > Set up with phone，手机连接设备屏幕显示的 `Passport-…` 热点并输入随机密码，打开 `http://192.168.4.1`，填写 2.4 GHz Wi-Fi 名称和密码。热点五分钟后或选择 Stop setup 关闭；返回应用可继续保持配网窗口。配网使用带密码的本地热点，限制输入长度、拒绝非法/重复字段及跨来源请求，不回显凭据。本版不提供 TLS 或 Flash 加密。ONLINE 只表示已获取 IP，不代表已经验证互联网可达。
+系统抽屉另有 Screen off (run)，立即恢复当前应用并关闭背光。短按继续交给应用，屏幕不亮；长按 OK 亮屏并打开菜单，清理应用前台会话。暂停模式下第一次完整按键只唤醒。实现为关闭背光、跳过应用界面渲染，不是深度休眠，也不代表已测出续航提升比例。未来语音适配器可在黑屏时保持音频/联网，本次没有新增 AI 对话应用。
 
-Scan nearby 最多显示四个附近网络，加入网络仍走手机配网。蓝牙本版为名为 `Passport` 的不可连接广播；不含配对、蓝牙音频、GATT 数据服务或蓝牙配网。按需初始化 NimBLE，关闭时停止协议栈。Wi-Fi/BLE 共存与内存仍需实机验收。
+## 容量与新增应用
 
-## 架构和新增应用
+Settings → Storage 显示物理 Flash、已分配/未分配空间、3 MiB 程序预算和可增长量、每个应用实际链接的 Flash/静态 RAM、应用存档条目与共享设置剩余条目。共享库只算一次，不将动态内存或未分配 Flash 冒充应用安装容量。
 
-`passport_core` 是可主机测试的生命周期、输入及取消模块；`passport_app` 管理应用注册表、控制循环、导航、持久化和界面状态；`passport_ui` 复用固定 LVGL 对象树；`passport_audio` 独占 codec 写入并在确认取消前排空缓冲音频；`passport_radio` 管理 Wi-Fi、配网与重连，`passport_ble` 管理 NimBLE 生命周期。网络/音频回调不访问 UI。应用生命周期、资源登记释放和令牌校验均在控制任务执行，工作任务通过有界结果消息回传，不能并发读写生命周期状态。
+后续按[新应用接入指南](docs/app-integration.zh_CN.md)中的清单、脚手架、生命周期和构建链路开发。[社区兼容性评估](docs/community-compatibility.zh_CN.md)记录小智与尖塔远征的改造路径；其原版 BIN 会覆盖底座，不能作为插件安装。
 
-在 `APPS_LIST` 注册稳定 ID、名称、版本、作者及 start/stop/focus/key。start 只准备轻量状态，在激活后的 focus(true) 中申请会话资源；stop 必须结束自身工作。取消动作应幂等、有时间上限，并在删除应用状态前确认异步生产者退出。当前单前台、最多八个取消资源槽，这是协作式生命周期管理，尚无独立进程隔离。动态安装、OTA、Voice Gateway、麦克风会话和通用网络请求适配器留待后续。
+## 构建与烧录
 
-## 持久化与烧录
+ESP32-C3、8 MiB、无 PSRAM；ESP-IDF 5.5.3。继续使用历史目录 firmware/muyu 作为构建入口。执行 ./tools/validate.sh --static 和 ./tools/validate.sh --firmware。后者将清单内所有应用和底座一起编译，统计实际链接占用、重新链接容量数据，确认数字未变再合并。
 
-目标 ESP32-C3、8 MB Flash、ESP-IDF 5.5.3；3 MiB 应用上限与 `cardid@0x356000` 保持不变。新增 `settings` NVS 位于 `0x310000`、大小 `0x6000`。校验要求合并镜像结束位置不超过 `0x310000`，因此后续连续写入保留设置和设备身份，交付不含这些分区的内容。平台使用 `passport` 命名空间，Wi-Fi 使用 `pp_wifi`；未来每个应用使用独立命名空间。联网凭据以一个有界 blob 保存。存储初始化错误不会自动擦除分区。
+只使用校验通过的 FoloToy-AI-Passport-full.bin，在[官方网页刷机工具](https://ai-passport.folotoy.cn/tools/web-flasher/)按偏移 0x0 烧录，禁止全片擦除。镜像必须结束于设置区 0x310000 之前，保留 24 KiB 设置和 cardid@0x356000。沿用 0.2.0 命名空间和 Wi-Fi 保存结构，新熄屏选项默认暂停；若旧版本最后打开的是 Device status，新版本回到应用列表。
 
-只使用校验通过的 **FoloToy-AI-Passport-full.bin**，在[官方网页烧录器](https://ai-passport.folotoy.cn/tools/web-flasher/)选择偏移 **0x0**，不要全片擦除。合并镜像可能覆盖应用之前的默认 `nvs` 驱动缓存；平台设置在这个范围之外。不要把 app-only 镜像按 0x0 烧入。本版在原有空隙新增设置分区，原分区不移动；合并前需完成实机验收。
-
-## 测试
-
-执行 `./tools/validate.sh --static` 和 `./tools/validate.sh --firmware`。GitHub Actions 使用固定 IDF 容器与干净配置，检查依赖锁、分区、镜像哈希，再渲染真实 LVGL 源码。核心测试覆盖 10,000 次短按、10,000 次生命周期切换、资源上限、旧令牌、失败恢复、设置校验以及 ASan/UBSan 下 20,000 组异常表单输入；平台 UI 在 32 KiB LVGL 池运行 5,000 次切换。主机内存及模拟网络文案不等于设备内存与实测联网。
-
-构建和主机结论绑定具体 CI/源码 SHA，`build-info.json` 记录版本、目标、长度、哈希及 Device tests NOT RUN。待实测步骤见[实机验收清单](docs/platform-acceptance.zh_CN.md)。本包供首次设备验收使用，不表示已经完成硬件验收。
+构建、主机和实机结论分别记录，每次交付绑定源码 SHA、CI、镜像哈希与 capacity-report.json。见[实机验收清单](docs/platform-acceptance.zh_CN.md)；新固件在用户烧录验证前记为 Device tests NOT RUN。
 
 ## 来源
 
-基于 FoloToy/ai-passport `f75873f1aab24ac4c0ba9394c131669f66cce650`、木鱼示例 `16df9944d0f6a83b475e05acabbea73c8b49c3e1` 和本项目已验证木鱼基线 `16f9a7de434e6918e1a98caeecff28b171bcfea3`。保留上游 [MIT 许可证](LICENSE)、BSP、工程资料、木鱼逻辑和字库。系统菜单按用户要求采用黑白列表与抽屉方向，由真实矢量控件绘制，不嵌入截图。
+基于 FoloToy/ai-passport f75873f1aab24ac4c0ba9394c131669f66cce650 和本仓库已验证的木鱼/底座版本。保留 [MIT 许可](LICENSE)、上游 BSP 与字体 OFL 归属。键盘交互研究了 MIT leo-radio，本版独立实现；没有加入游戏/语音项目源码或凭据。
