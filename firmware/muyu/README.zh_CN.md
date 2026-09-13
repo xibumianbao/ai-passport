@@ -1,8 +1,15 @@
 [English](README.md) · **简体中文**
 
-# Passport 多应用底座 0.4.1
+# Passport 多应用底座 0.5.0
 
-面向 FoloToy AI Passport 的常驻底座。Applications 包含木鱼和新增的芽芽宠物测试应用；设备状态和容量统一归入 Settings。正常重启恢复最近稳定启动的应用；首次或失败启动回到应用列表。
+面向 FoloToy AI Passport 的常驻底座。Applications 包含独立小智与芽芽宠物；木鱼已从固件移除；设备状态和容量统一归入 Settings。正常重启恢复最近稳定启动的应用；首次或失败启动回到应用列表。
+
+## 独立小智测试应用
+
+Applications → Xiaozhi；Ready 时短按 OK 开始说话，再短按 OK 发送，最多 30 秒。
+回答时短按 OK 断开会话，再按 OK 重新连接；长按 OK 始终打开系统菜单。沿用底座
+Wi-Fi 与设备云端绑定。激活、协议、容量和验收见[小智说明](docs/xiaozhi-standalone.zh_CN.md)。
+首版不含唤醒词或 AEC，优先验证独立语音，再接宠物。
 
 ## 芽芽宠物测试应用
 
@@ -13,7 +20,7 @@
 
 [宠物玩法与实机清单](docs/pet-v1.zh_CN.md)说明详细规则、小像素资源和测试；
 [后续语音接入](docs/voice-integration.zh_CN.md)规划宠物与小智融合、IDA 独立语音入口。
-本测试版尚未实现两种语音接入。容量以对应交付 BIN 的报告为准，实机验收待完成。
+本测试版先实现独立小智；宠物对话与 IDA 语音后续接入。容量以对应交付 BIN 的报告为准，实机验收待完成。
 
 ## 操作与设备配网
 
@@ -30,7 +37,7 @@
 
 Screen-off mode 提供 Pause app（默认，兼容 0.2.0）和 Keep app running，用于应用页自动熄屏。Screen timeout 保持关闭/60/120/300 秒；停留系统菜单超时始终暂停应用。
 
-系统抽屉另有 Screen off (run)，立即恢复当前应用并关闭背光。短按继续交给应用，屏幕不亮；长按 OK 亮屏并打开菜单，清理应用前台会话。暂停模式下第一次完整按键只唤醒。实现为关闭背光、跳过应用界面渲染，不是深度休眠，也不代表已测出续航提升比例。未来语音适配器可在黑屏时保持音频/联网，本次没有新增 AI 对话应用。
+系统抽屉另有 Screen off (run)，立即恢复当前应用并关闭背光。短按继续交给应用，屏幕不亮；长按 OK 亮屏并打开菜单，清理应用前台会话。暂停模式下第一次完整按键只唤醒。实现为关闭背光、跳过应用界面渲染，不是深度休眠，也不代表已测出续航提升比例。独立小智可在 Running 熄屏模式保持语音；Pause 模式撤销会话。
 
 ## 容量与新增应用
 
@@ -48,4 +55,4 @@ ESP32-C3、8 MiB、无 PSRAM；ESP-IDF 5.5.3。继续使用历史目录 firmware
 
 ## 来源
 
-基于 FoloToy/ai-passport f75873f1aab24ac4c0ba9394c131669f66cce650 和本仓库已验证的木鱼/底座版本。保留 [MIT 许可](LICENSE)、上游 BSP 与字体 OFL 归属。键盘交互研究了 MIT leo-radio，本版独立实现；没有加入游戏/语音项目源码或凭据。
+基于 FoloToy/ai-passport f75873f1aab24ac4c0ba9394c131669f66cce650 和本仓库已验证的木鱼/底座版本。保留 [MIT 许可](LICENSE)、上游 BSP 与字体 OFL 归属。键盘交互研究了 MIT leo-radio，本版独立实现；小智协议来源见[语音组件声明](components/pp_voice/NOTICE)，不提交凭据。

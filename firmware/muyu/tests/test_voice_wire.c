@@ -75,4 +75,18 @@ static void config(void)
     assert(!pp_voice_uuid_valid("12345678Xabcd-4321-8123-123456789abc"));
     assert(!pp_voice_uuid_valid("12345678-abcd-4321-8123-123456789abg"));
 }
-int main(void) { framing(); fragments(); config(); puts("Voice wire bounds, fragmentation and configuration: PASS"); }
+static void json_bounds(void)
+{
+    const char *valid=" {\"escaped\":\"\\\"{}\\\\\",\"array\":[1,2,{}]} \n";
+    assert(pp_voice_json_safe(valid,strlen(valid)));
+    assert(pp_voice_json_safe("{}",2));
+    assert(!pp_voice_json_safe("{}{}",4));
+    assert(!pp_voice_json_safe("[]",2));
+    assert(!pp_voice_json_safe("{\"x\":\"unfinished}",17));
+    assert(!pp_voice_json_safe("{}\0",3));
+    assert(!pp_voice_json_safe("{\"x\":\"a\nb\"}",11));
+    char nested[64]; memset(nested,'{',32); memset(nested+32,'}',32);
+    assert(!pp_voice_json_safe(nested,sizeof(nested)));
+    assert(pp_voice_json_safe(nested+16,32)); /* syntax belongs to cJSON */
+}
+int main(void) { framing(); fragments(); config(); json_bounds(); puts("Voice wire bounds, fragmentation and configuration: PASS"); }

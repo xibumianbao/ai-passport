@@ -388,7 +388,7 @@ static void build_view(pp_view_t *v,const pp_radio_state_t *radio,int battery)
     case DIAGNOSTICS:
         strcpy(v->title,"RUNTIME MEMORY");
         snprintf(v->detail,sizeof(v->detail),"Audio: %s\nButtons: %s\nStorage: %s\nRadio error: %d\nHeap free: %lu KiB\nMinimum: %lu KiB\n\nShared runtime heap;\nnot Flash capacity.\n\nOK: back",
-          pp_audio_ok()?"OK":"ERROR",v->buttons_ok?"OK":"ERROR",s_storage_error?"ERROR":"OK",radio->error,(unsigned long)(esp_get_free_heap_size()/1024),(unsigned long)(esp_get_minimum_free_heap_size()/1024)); break;
+          pp_audio_status(),v->buttons_ok?"OK":"ERROR",s_storage_error?"ERROR":"OK",radio->error,(unsigned long)(esp_get_free_heap_size()/1024),(unsigned long)(esp_get_minimum_free_heap_size()/1024)); break;
     case ABOUT:
         strcpy(v->title,"PASSPORT");
         snprintf(v->detail,sizeof(v->detail),"Platform %s\nESP32-C3 / 8 MB\nESP-IDF %s\n\n%d custom app(s)\nOne system firmware\n\nOK: back",PP_VERSION,esp_get_idf_version(),PP_APP_COUNT); break;

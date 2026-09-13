@@ -2,7 +2,7 @@
 
 # Pet, Xiaozhi and IDA integration boundary
 
-Status: integration plan, not an implemented voice connection. Updated 2026-09-13: **a standalone Xiaozhi application and the pet chat mode share one voice service and the same configured cloud agent, personality, voice and memory settings**. The pet becomes its Avatar; IDA retains a future separate voice application. Cross-entry memory behavior requires a real service test; sharing audio does not share IDA privileges. The current evidence and implementation plan are in [Xiaozhi integration research](xiaozhi-research.md).
+Status: platform 0.5.0 implements standalone Xiaozhi; pet and IDA integration remain planned. See [standalone implementation and acceptance](xiaozhi-standalone.md). Updated 2026-09-13: **a standalone Xiaozhi application and the pet chat mode share one voice service and the same configured cloud agent, personality, voice and memory settings**. The pet becomes its Avatar; IDA retains a future separate voice application. Cross-entry memory behavior requires a real service test; sharing audio does not share IDA privileges. The current evidence and implementation plan are in [Xiaozhi integration research](xiaozhi-research.md).
 
 ## One character, shared services, separate tasks
 
@@ -30,7 +30,7 @@ Reviewed source: [FoloToy fork at d24fce0](https://github.com/FoloToy/folo-ai-pa
 
 Current upstream 2.5.0 also supports the board as `ai-passport`, and the console can compile that standard source; it does not expose this project's custom source input. Adapt protocol/audio into one platform service used by both entries. Do not import `app_main`, display, keyboard, provisioning, firmware installation or partitions. Preserve configuration discovery/activation separately from OTA installation and store one identity in protected settings. Prefer button-initiated half-duplex and WebSocket only after real discovery confirms availability; upstream may supply/select MQTT instead. Defer wake-word models and bundled expression packs. Reuse Yaya and the system BSP. See the research for exact source revisions, parser bounds and measured-budget gates.
 
-Bind visible states to actual events: recording started → listening; request submitted → thinking; audio playback actually started → speaking; playback drained/stopped → idle. Receiving text or a transport “done” event does not mean audio is playing or the business task succeeded. Stop and join workers before leaving the app; a stop flag alone is insufficient.
+Bind visible states to actual events: recording started → listening; request submitted → thinking; audio playback actually started → speaking; playback drained/stopped → idle. Receiving text or a transport “done” event does not mean audio is playing or the business task succeeded. On exit, revoke the session and let its sole worker close transport/codecs before granting another audio lease. The standalone worker never touches LVGL; any future UI producer must be joined before deleting its view. A stop flag without ownership and cleanup gates is insufficient.
 
 ## IDA with speech
 

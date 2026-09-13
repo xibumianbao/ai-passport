@@ -40,7 +40,7 @@ separately; runtime heap, stacks and DMA require device measurements.
 Use the WSS URL/token returned by discovery. A missing WSS configuration produces
 an explicit error; MQTT/UDP is not implemented in this test build. Support binary
 protocol versions 1/2/3, 16 kHz mono uplink with 60 ms Opus frames, bounded fragmented
-messages and server ping/pong. Playback decodes to 16 kHz at a fixed I2S format.
+messages (8 KiB, JSON depth <=16) and server ping/pong. Playback decodes to 16 kHz at a fixed I2S format.
 No wake-word engine, AEC, simultaneous listening/playback or large image assets.
 
 Host tests exercise frame boundaries, continuation frames, oversize rejection,
@@ -58,7 +58,7 @@ logs include counts and memory totals, never tokens, transcripts or MAC addresse
 
 Protocol and ES8311 behavior reference [FoloToy's Xiaozhi fork](https://github.com/FoloToy/folo-ai-passport-xiaozhi/tree/d24fce080d86d7cc642f71585f6efde40fb99104)
 (MIT, Shenzhen Xinzhi Future Technology Co., Ltd. and contributors), based on
-upstream 2.4.2. Existing project LICENSE and THIRD_PARTY_NOTICES remain applicable.
+upstream 2.4.2. The project LICENSE and [voice attribution notice](../components/pp_voice/NOTICE) preserve the sources.
 This is an independent C adapter, not a replacement with upstream's whole firmware.
 See [integration research](xiaozhi-research.md) for source comparison and rationale.
 

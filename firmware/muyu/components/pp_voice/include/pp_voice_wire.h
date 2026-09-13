@@ -23,3 +23,5 @@ bool pp_voice_wss_url(const char *url, char *host, size_t host_size,
                       unsigned *port, char *path, size_t path_size);
 bool pp_voice_uuid_valid(const char *uuid);
 bool pp_voice_header_value(const char *value, size_t capacity);
+/* Bound parser recursion before passing an untrusted object to cJSON. */
+bool pp_voice_json_safe(const void *data, size_t length);

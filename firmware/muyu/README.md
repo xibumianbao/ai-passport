@@ -1,8 +1,16 @@
 [简体中文](README.zh_CN.md) · **English**
 
-# Passport multi-application platform 0.4.1
+# Passport multi-application platform 0.5.0
 
-A persistent system shell for FoloToy AI Passport. Applications contains Muyu and the new Yaya Pet test application. Device status and capacity belong to Settings. The last stable application resumes after restart, with first/failed startup falling back to the application list.
+A persistent system shell for FoloToy AI Passport. Applications contains standalone Xiaozhi and Yaya Pet. Muyu is retired from the firmware. Device status and capacity belong to Settings. The last stable application resumes after restart, with first/failed startup falling back to the application list.
+
+## Standalone Xiaozhi test application
+
+Open Applications -> Xiaozhi. At Ready, short OK starts recording; short OK again
+sends it (30-second limit). OK during an answer stops the connection; OK again
+reconnects. Long OK always opens the system menu. Existing system Wi-Fi and cloud
+binding are reused. See the [voice guide](docs/xiaozhi-standalone.md) for activation,
+protocol, memory, cancellation and device acceptance. No wake word or AEC yet.
 
 ## Yaya Pet test application
 
@@ -15,8 +23,8 @@ There are no offline penalties or repeated-click minigames.
 
 The [pet guide and hardware checklist](docs/pet-v1.md) explains the exact rules,
 small pixel resources and tests. [Future voice integration](docs/voice-integration.md)
-keeps the pet with Xiaozhi and IDA as a separate voice-enabled entry. Neither
-voice integration is implemented in this test build. Use the capacity report
+keeps the pet with Xiaozhi and IDA as a separate voice-enabled entry. Pet conversation and IDA speech
+remain future work; this test build implements standalone Xiaozhi first. Use the capacity report
 from the exact delivered BIN; hardware acceptance remains pending.
 
 ## Controls and Wi-Fi
@@ -34,7 +42,7 @@ from the exact delivered BIN; hardware acceptance remains pending.
 
 Screen-off mode has Pause app (default, compatible with 0.2.0) and Keep app running. It controls automatic timeout while an app is open. Screen timeout remains 0/60/120/300 seconds. Menu timeout always pauses.
 
-The system drawer also has Screen off (run), which immediately resumes the active app with its backlight off. Short keys continue reaching the app and do not light the screen. Long OK lights it and opens the menu, cancelling the app's foreground session. In paused mode the first complete key gesture only wakes the display. This turns off the backlight and skips app rendering; it is not deep sleep or a measured battery-life guarantee. Future voice adapters can keep audio/network running while dark; this release does not add an AI conversation app.
+The system drawer also has Screen off (run), which immediately resumes the active app with its backlight off. Short keys continue reaching the app and do not light the screen. Long OK lights it and opens the menu, cancelling the app's foreground session. In paused mode the first complete key gesture only wakes the display. This turns off the backlight and skips app rendering; it is not deep sleep or a measured battery-life guarantee. Xiaozhi can keep audio/network running while dark in Running mode. Pause mode cancels its voice session.
 
 ## Capacity and application development
 
@@ -52,4 +60,4 @@ Build, host tests and device results are separate. Every release binds source SH
 
 ## Provenance
 
-Based on FoloToy/ai-passport f75873f1aab24ac4c0ba9394c131669f66cce650 and the verified Muyu/platform work in this repository. Preserve the [MIT license](LICENSE), upstream BSP and font OFL credits. Keyboard interaction was studied in MIT leo-radio; the implementation is independent. No game/voice source or credentials were added in this release.
+Based on FoloToy/ai-passport f75873f1aab24ac4c0ba9394c131669f66cce650 and the verified Muyu/platform work in this repository. Preserve the [MIT license](LICENSE), upstream BSP and font OFL credits. Keyboard interaction was studied in MIT leo-radio; the implementation is independent. Xiaozhi protocol attribution is preserved in [the voice component notice](components/pp_voice/NOTICE). No credentials are committed.

@@ -94,3 +94,27 @@ bool pp_voice_uuid_valid(const char *s)
     }
     return true;
 }
+bool pp_voice_json_safe(const void *data,size_t length)
+{
+    if(!data || !length || length>PP_VOICE_MESSAGE_MAX) return false;
+    const uint8_t *s=data;
+    unsigned depth=0; bool quoted=false,escaped=false,started=false,ended=false;
+    for(size_t i=0;i<length;++i) {
+        unsigned c=s[i];
+        if(!c) return false;
+        if(quoted) {
+            if(c<32) return false;
+            if(escaped) { escaped=false; continue; }
+            if(c=='\\') escaped=true;
+            else if(c=='"') quoted=false;
+            continue;
+        }
+        if(c==' ' || c=='\r' || c=='\n' || c=='\t') continue;
+        if(ended || (!started && c!='{')) return false;
+        if(c=='"') quoted=true;
+        else if(c=='{' || c=='[') { started=true; if(++depth>16) return false; }
+        else if(c=='}' || c==']') { if(!depth) return false; if(--depth==0) ended=true; }
+        else if(c<32) return false;
+    }
+    return started && ended && !depth && !quoted && !escaped;
+}

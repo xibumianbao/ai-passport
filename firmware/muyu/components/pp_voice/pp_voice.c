@@ -140,7 +140,8 @@ static bool clock_ready(voice_t *v)
     if(time(NULL)>=1735689600) return true;
     publish(v,PP_VOICE_CLOCK,"Synchronizing secure clock");
     if(!sntp_started) {
-        esp_sntp_config_t cfg=ESP_NETIF_SNTP_DEFAULT_CONFIG("time.cloudflare.com");
+        esp_sntp_config_t cfg=ESP_NETIF_SNTP_DEFAULT_CONFIG("ntp.aliyun.com");
+        cfg.num_of_servers=2; cfg.servers[1]="time.cloudflare.com";
         if(esp_netif_sntp_init(&cfg)!=ESP_OK) return fail(v,"Clock service unavailable");
         sntp_started=true;
     }
@@ -196,7 +197,7 @@ static bool discover(voice_t *v)
         publish(v,PP_VOICE_DISCOVERY,"Checking Xiaozhi binding");
         int status=http_post(v,OTA_URL,body,response,PP_VOICE_MESSAGE_MAX+1);
         if(status!=200) { fail(v,"Discovery failed. OK retry"); break; }
-        cJSON *root=cJSON_Parse(response);
+        cJSON *root=pp_voice_json_safe(response,strlen(response))?cJSON_Parse(response):NULL;
         if(!cJSON_IsObject(root)) { cJSON_Delete(root); fail(v,"Invalid discovery response"); break; }
         const cJSON *act=cJSON_GetObjectItemCaseSensitive(root,"activation");
         const char *code=str(act,"code");
@@ -311,6 +312,7 @@ static bool listen_command(voice_t *v,bool start)
 }
 static bool json_message(voice_t *v)
 {
+    if(!pp_voice_json_safe(v->message.data,v->message.used)) return false;
     cJSON *root=cJSON_ParseWithLength((const char *)v->message.data,v->message.used);
     const char *type=str(root,"type"); bool ok=type!=NULL;
     if(type && !strcmp(type,"hello")) {
@@ -418,8 +420,20 @@ static bool capture(voice_t *v)
 static void worker(void *arg)
 {
     voice_t *v=arg;
-    pp_radio_state_t radio; pp_radio_snapshot(&radio);
-    if(radio.wifi!=PP_WIFI_ONLINE) { publish(v,PP_VOICE_WIFI,"Connect Wi-Fi in Settings"); goto done; }
+    esp_log_level_set("TRANSPORT_WS",ESP_LOG_WARN);
+    esp_log_level_set("HTTP_CLIENT",ESP_LOG_WARN);
+    pp_radio_state_t radio;
+    int64_t wifi_started=now_ms();
+    while(live(v)) {
+        pp_radio_snapshot(&radio);
+        if(radio.wifi==PP_WIFI_ONLINE) break;
+        int64_t elapsed=now_ms()-wifi_started;
+        if(elapsed>=30000 || (elapsed>=1500 && radio.wifi!=PP_WIFI_CONNECTING)) {
+            publish(v,PP_VOICE_WIFI,"Connect Wi-Fi in Settings"); goto done;
+        }
+        publish(v,PP_VOICE_STARTING,"Waiting for system Wi-Fi"); vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    if(!live(v)) goto done;
     if(!identity(v) || !clock_ready(v) || !discover(v) || !connect_ws(v) || !codecs(v)) goto done;
     while(live(v)) {
         if(!receive(v)) { fail(v,"Connection ended. OK retry"); break; }

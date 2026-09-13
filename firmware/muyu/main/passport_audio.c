@@ -7,10 +7,13 @@
 static atomic_bool owned, ready;
 static atomic_uint volume;
 static unsigned applied=101;
-static bool hardware_attempted, hardware_ok;
+static atomic_bool hardware_attempted;
+static bool hardware_ok;
 bool pp_audio_init(unsigned value) { atomic_store(&volume,value); return true; }
 void pp_audio_volume(unsigned value) { atomic_store(&volume,value>100?100:value); }
 bool pp_audio_ok(void) { return atomic_load(&ready); }
+const char *pp_audio_status(void)
+{ return !atomic_load(&hardware_attempted)?"STANDBY":pp_audio_ok()?"OK":"ERROR"; }
 bool pp_audio_acquire(void)
 {
     bool expected=false;
